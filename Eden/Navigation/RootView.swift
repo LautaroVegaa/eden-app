@@ -2,50 +2,53 @@ import SwiftUI
 import SwiftData
 import RevenueCatUI
 
-/// Flow: onboarding (once) -> the app.
+/// Flow: splash -> onboarding (once) -> one free prayer -> hard paywall -> app.
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var purchases: PurchaseManager
     @Query private var profiles: [UserProfile]
+    @AppStorage(AppConfig.hasSeenFirstPrayerKey) private var hasSeenFirstPrayer = false
+    @State private var showSplash = true
 
     var body: some View {
-        Group {
-            if profiles.isEmpty {
-                NavigationStack { OnboardingView() }
-            } else if !purchases.isReady {
-                loadingView
-            } else if purchases.isSubscribed {
-                MainTabView()
-            } else {
-                revenueCatPaywall
+        ZStack {
+            content
+            if showSplash {
+                SplashView()
+                    .transition(.opacity)
+                    .zIndex(1)
             }
         }
         .task { await purchases.start() }
+        .task { await dismissSplashAfterMinimum() }
         #if DEBUG
         .task { seedForDevIfRequested() }
         #endif
     }
 
-    private var loadingView: some View {
-        ScreenContainer {
-            VStack(spacing: 18) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 28)
-                        .fill(Theme.surface.opacity(0.72))
-                        .frame(width: 96, height: 96)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 28)
-                                .strokeBorder(Theme.accentFill.opacity(0.22), lineWidth: 1)
-                        )
-                    EdenLoadingMark(size: 58)
-                }
-
-                Text("Eden")
-                    .font(.system(.title2, design: .serif).weight(.semibold))
-                    .foregroundStyle(Theme.textPrimary)
+    @ViewBuilder
+    private var content: some View {
+        if profiles.isEmpty {
+            NavigationStack { OnboardingView() }
+        } else if !purchases.isReady {
+            SplashView()
+        } else if purchases.isSubscribed {
+            MainTabView()
+        } else if !hasSeenFirstPrayer, let profile = profiles.first {
+            FirstPrayerRevealView(profile: profile) {
+                HapticService.selection()
+                withAnimation(.easeInOut(duration: 0.35)) { hasSeenFirstPrayer = true }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            revenueCatPaywall
         }
+    }
+
+    /// Hold the splash for a short, deliberate beat so the brand lands and the
+    /// subscription state has time to resolve underneath.
+    private func dismissSplashAfterMinimum() async {
+        try? await Task.sleep(nanoseconds: 1_400_000_000)
+        withAnimation(.easeInOut(duration: 0.45)) { showSplash = false }
     }
 
     private var revenueCatPaywall: some View {

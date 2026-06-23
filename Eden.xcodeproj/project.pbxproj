@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		2B000000000000000000000E /* EdenWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 2B0000000000000000000001 /* EdenWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2B0000000000000000000011 /* EdenVerseWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0000000000000000000003 /* EdenVerseWidget.swift */; };
+		2B0000000000000000000021 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2B0000000000000000000020 /* PrivacyInfo.xcprivacy */; };
 		733D9B032FE64E540084379F /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 733D9B022FE64E540084379F /* RevenueCat */; };
 		733D9B042FE64E540084379F /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 733D9B052FE64E540084379F /* RevenueCatUI */; };
 /* End PBXBuildFile section */
@@ -43,6 +44,7 @@
 		2B0000000000000000000003 /* EdenVerseWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdenVerseWidget.swift; sourceTree = "<group>"; };
 		2B0000000000000000000004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		2B0000000000000000000005 /* EdenWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = EdenWidgetExtension.entitlements; sourceTree = "<group>"; };
+		2B0000000000000000000020 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -97,6 +99,7 @@
 				2B0000000000000000000003 /* EdenVerseWidget.swift */,
 				2B0000000000000000000004 /* Info.plist */,
 				2B0000000000000000000005 /* EdenWidgetExtension.entitlements */,
+				2B0000000000000000000020 /* PrivacyInfo.xcprivacy */,
 			);
 			path = EdenWidgetExtension;
 			sourceTree = "<group>";
@@ -200,6 +203,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2B0000000000000000000021 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

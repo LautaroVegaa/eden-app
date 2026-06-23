@@ -23,4 +23,8 @@ enum AppConfig {
     /// Set true once the user explicitly accepts that what they share is sent
     /// to Anthropic (AI) through Eden's server. Gates AI requests.
     static let aiConsentKey = "eden.aiConsentGranted"
+
+    /// Set true after the user has seen their one free prayer (the "aha" right
+    /// after onboarding). After this, the hard paywall gates everything.
+    static let hasSeenFirstPrayerKey = "eden.hasSeenFirstPrayer"
 }
