@@ -8,7 +8,7 @@ struct EdenPrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(Theme.onAccent)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(Theme.accent, in: Capsule())
+            .background(Theme.accentFill, in: Capsule())
             .opacity(configuration.isPressed ? 0.85 : 1.0)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }

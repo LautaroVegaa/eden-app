@@ -8,7 +8,7 @@ struct OnboardingProgressBar: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Theme.surface)
                 Capsule()
-                    .fill(Theme.accent)
+                    .fill(Theme.accentFill)
                     .frame(width: max(0, min(1, progress)) * geo.size.width)
             }
         }

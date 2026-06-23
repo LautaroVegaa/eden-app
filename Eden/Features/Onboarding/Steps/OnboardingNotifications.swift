@@ -9,7 +9,7 @@ struct OnboardingNotifications: View {
             Spacer()
             Image(systemName: "bell.fill")
                 .font(.system(size: 44))
-                .foregroundStyle(Theme.accent)
+                .foregroundStyle(Theme.accentText)
                 .padding(.bottom, 8)
             Text("One prayer, right when you need it.")
                 .font(.system(.title, design: .serif).weight(.semibold))

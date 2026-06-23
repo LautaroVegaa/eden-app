@@ -1,236 +1,215 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
+/// Talk to God — a focused prayer-companion chat. Eden replies conversationally
+/// and stays in the faith/prayer lane (enforced server-side). Daily message cap
+/// protects token cost; the hard paywall gates access to paying users.
 struct TalkToGodView: View {
+    var onBack: () -> Void = {}
+
     @Query(sort: \UserProfile.createdAt, order: .reverse) private var profiles: [UserProfile]
     @StateObject private var speaker = PrayerSpeaker()
+
+    @State private var messages: [ChatMessage] = []
     @State private var input = ""
-    @State private var phase: Phase = .idle
-    @State private var remaining = TalkPrayerLocalStore.dailyLimit
+    @State private var sending = false
+    @State private var remaining = ChatLimiter.dailyLimit
     @FocusState private var focused: Bool
 
-    private enum Phase {
-        case idle
-        case loading
-        case loaded(prayer: String, verseReference: String, verseText: String, cached: Bool)
-        case failed(String)
-    }
-
     private var profile: UserProfile? { profiles.first }
-    private var trimmedInput: String {
-        input.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
+    private var trimmed: String { input.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var verse: Verse? { VerseStore.shared.verse(for: profile?.struggle ?? "peace") }
+    private var canSend: Bool { !trimmed.isEmpty && !sending && remaining > 0 }
+
+    private let suggestions = [
+        "I can't sleep, my mind won't stop",
+        "I'm scared about the future",
+        "I feel far from God",
+        "Help me find peace"
+    ]
 
     var body: some View {
         ScreenContainer {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    header
-                    inputCard
-                    generateButton
-                    phaseView
-                    MedicalDisclaimerText()
-                        .padding(.top, 8)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 12)
-                .padding(.bottom, 40)
+            VStack(spacing: 0) {
+                header
+                messagesList
+                inputBar
             }
         }
-        .onAppear { refreshRemaining() }
+        .onAppear { remaining = ChatLimiter.remaining() }
+        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden(true)
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Talk to God")
-                .font(.system(.largeTitle, design: .serif).weight(.semibold))
-                .foregroundStyle(Theme.textPrimary)
-            Text("Write what is weighing on you. Eden will turn it into a short prayer.")
-                .font(.subheadline)
-                .foregroundStyle(Theme.textMuted)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Button {
+                    HapticService.selection()
+                    onBack()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary.opacity(0.86))
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Back")
+
+                Text("Talk to God")
+                    .font(.system(.title2, design: .serif).weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
+            }
+
+            if let verse {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verse.text)
+                        .font(.system(.subheadline, design: .serif))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(verse.reference)
+                        .font(.caption)
+                        .foregroundStyle(Theme.accentText)
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.bottom, 4)
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
     }
 
-    private var inputCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ZStack(alignment: .topLeading) {
-                if input.isEmpty {
-                    Text("e.g. I have an exam tomorrow and I feel panicked...")
-                        .font(.body)
-                        .foregroundStyle(Theme.textMuted)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 20)
+    private var messagesList: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    if messages.isEmpty { welcome }
+                    ForEach(messages) { bubble($0).id($0.id) }
+                    if sending { typingBubble.id("typing") }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .onChange(of: messages.count) { _, _ in
+                if let last = messages.last {
+                    withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
+                }
+            }
+        }
+    }
 
-                TextEditor(text: $input)
+    private var welcome: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            bubble(ChatMessage(role: .assistant,
+                               text: "I'm here with you. Tell me what's on your heart, and we'll bring it to God together."))
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(suggestions, id: \.self) { suggestion in
+                    Button { send(suggestion) } label: {
+                        Text(suggestion)
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.textPrimary)
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 14)
+                            .background(Theme.surface, in: Capsule())
+                            .overlay(Capsule().strokeBorder(Theme.accentFill.opacity(0.4), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            MedicalDisclaimerText().padding(.top, 6)
+        }
+    }
+
+    private func bubble(_ message: ChatMessage) -> some View {
+        let isUser = message.role == .user
+        return HStack {
+            if isUser { Spacer(minLength: 40) }
+            Text(message.text)
+                .font(.body)
+                .foregroundStyle(Theme.textPrimary)
+                .padding(.vertical, 12)
+                .padding(.horizontal, 14)
+                .background(isUser ? Theme.accentFill.opacity(0.18) : Theme.surface,
+                            in: RoundedRectangle(cornerRadius: 16))
+                .contextMenu {
+                    Button { speaker.toggle(message.text) } label: { Label("Listen", systemImage: "headphones") }
+                    Button { UIPasteboard.general.string = message.text } label: { Label("Copy", systemImage: "doc.on.doc") }
+                }
+            if !isUser { Spacer(minLength: 40) }
+        }
+        .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+    }
+
+    private var typingBubble: some View {
+        HStack {
+            EdenTypingDots()
+                .padding(.vertical, 14)
+                .padding(.horizontal, 18)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+            Spacer(minLength: 40)
+        }
+    }
+
+    private var inputBar: some View {
+        VStack(spacing: 6) {
+            if remaining <= 0 {
+                Text("You've used today's prayers. Come back tomorrow.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textMuted)
+            }
+            HStack(spacing: 10) {
+                TextField("What's on your heart?", text: $input, axis: .vertical)
+                    .lineLimit(1...4)
                     .font(.body)
                     .foregroundStyle(Theme.textPrimary)
-                    .scrollContentBackground(.hidden)
-                    .padding(8)
-                    .frame(minHeight: 150)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 14)
+                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 20))
                     .focused($focused)
-            }
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
-
-            Text("\(remaining) guided prayer\(remaining == 1 ? "" : "s") left today")
-                .font(.caption)
-                .foregroundStyle(Theme.textMuted)
-        }
-    }
-
-    private var generateButton: some View {
-        Button {
-            Task { await generatePrayer() }
-        } label: {
-            if case .loading = phase {
-                ProgressView()
-                    .tint(Theme.onAccent)
-                    .frame(maxWidth: .infinity)
-            } else {
-                Text("Write My Prayer")
-            }
-        }
-        .buttonStyle(EdenPrimaryButtonStyle())
-        .disabled(trimmedInput.isEmpty || isLoading)
-        .opacity(trimmedInput.isEmpty || isLoading ? 0.6 : 1.0)
-    }
-
-    @ViewBuilder
-    private var phaseView: some View {
-        switch phase {
-        case .idle:
-            EmptyView()
-        case .loading:
-            loadingCard
-        case let .loaded(prayer, verseReference, verseText, cached):
-            VStack(alignment: .leading, spacing: 18) {
-                if cached {
-                    Label("Saved for today", systemImage: "checkmark.circle.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.textMuted)
+                Button { send(trimmed) } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 32))
+                        .foregroundStyle(canSend ? Theme.accentText : Theme.textMuted)
                 }
-                VerseCard(reference: verseReference, text: verseText)
-                PrayerCard(
-                    body_: prayer,
-                    isSpeaking: speaker.isSpeaking,
-                    onToggleListen: { speaker.toggle(prayer) },
-                    shareImage: nil
-                )
+                .disabled(!canSend)
             }
-        case let .failed(message):
-            errorCard(message)
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Theme.background)
     }
 
-    private var loadingCard: some View {
-        VStack(spacing: 14) {
-            ProgressView().tint(Theme.accent)
-            Text("Writing your prayer...")
-                .font(.subheadline)
-                .foregroundStyle(Theme.textMuted)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 36)
-    }
-
-    private func errorCard(_ message: String) -> some View {
-        Text(message)
-            .font(.subheadline)
-            .foregroundStyle(Theme.textMuted)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .padding(18)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
-    }
-
-    private var isLoading: Bool {
-        if case .loading = phase { return true }
-        return false
-    }
-
-    private func generatePrayer() async {
-        let prompt = trimmedInput
-        guard !prompt.isEmpty else { return }
-        guard let profile else {
-            phase = .failed("Finish onboarding first.")
+    private func send(_ text: String) {
+        let content = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty, !sending, ChatLimiter.canSend() else {
+            remaining = ChatLimiter.remaining()
             return
         }
+        input = ""
+        focused = false
+        HapticService.impact()
+        messages.append(ChatMessage(role: .user, text: content))
+        let matchedVerse = VerseStore.shared.verse(for: "\(content) \(profile?.struggle ?? "")")
+        WidgetVerseStore.save(reference: matchedVerse?.reference ?? "", text: matchedVerse?.text ?? "")
+        ChatLimiter.register()
+        remaining = ChatLimiter.remaining()
+        sending = true
 
-        let dayKey = DayKey.key()
-        if let cached = TalkPrayerLocalStore.shared.cachedPrayer(for: prompt, dayKey: dayKey) {
-            phase = .loaded(
-                prayer: cached.prayer,
-                verseReference: cached.verseReference,
-                verseText: cached.verseText,
-                cached: true
-            )
-            refreshRemaining()
-            return
+        let history = messages.suffix(8).map {
+            ChatTurn(role: $0.role == .user ? "user" : "assistant", text: $0.text)
         }
+        let name = profile?.name ?? ""
 
-        guard TalkPrayerLocalStore.shared.canGenerate(dayKey: dayKey) else {
-            phase = .failed("You have used today's guided prayers. Come back tomorrow.")
-            refreshRemaining()
-            return
-        }
-
-        phase = .loading
-        let struggle = profile.struggle ?? "anxiety"
-        let verse = VerseStore.shared.verse(for: "\(prompt) \(struggle)")
-        let request = PrayerRequest(
-            name: profile.name,
-            gender: profile.gender ?? "",
-            struggle: struggle,
-            desire: profile.desire ?? "peace",
-            freeText: prompt,
-            verseReference: verse?.reference ?? "",
-            verseText: verse?.text ?? ""
-        )
-
-        do {
-            let text = try await PrayerService().generatePrayer(request)
-            let body = stripTrailingVerse(text)
-            TalkPrayerLocalStore.shared.save(
-                prompt: prompt,
-                prayer: body,
-                verseReference: verse?.reference ?? "",
-                verseText: verse?.text ?? "",
-                dayKey: dayKey
-            )
-            phase = .loaded(
-                prayer: body,
-                verseReference: verse?.reference ?? "",
-                verseText: verse?.text ?? "",
-                cached: false
-            )
-            refreshRemaining()
-        } catch {
-            phase = .failed("Couldn't write your prayer. Check your connection and try again.")
-            refreshRemaining()
+        Task {
+            do {
+                let reply = try await PrayerService().chat(name: name, messages: history)
+                messages.append(ChatMessage(role: .assistant, text: reply))
+            } catch {
+                messages.append(ChatMessage(role: .assistant,
+                                            text: "I couldn't respond just now. Check your connection and try again."))
+            }
+            sending = false
         }
     }
-
-    private func refreshRemaining() {
-        remaining = TalkPrayerLocalStore.shared.remainingGenerations()
-    }
-
-    private func isVerseLine(_ line: String) -> Bool {
-        line.count < 40 && line.contains(":") && line.rangeOfCharacter(from: .decimalDigits) != nil
-    }
-
-    private func stripTrailingVerse(_ text: String) -> String {
-        let lines = text
-            .split(separator: "\n", omittingEmptySubsequences: true)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-        guard let last = lines.last, isVerseLine(last) else { return text }
-        let body = lines.dropLast().joined(separator: "\n\n")
-        return body.isEmpty ? text : body
-    }
-}
-
-#Preview {
-    NavigationStack { TalkToGodView() }
-        .modelContainer(for: [UserProfile.self, DailyPrayer.self], inMemory: true)
 }

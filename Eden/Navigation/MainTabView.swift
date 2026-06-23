@@ -1,21 +1,27 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @State private var selectedTab: MainTab = .today
+
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack {
                 TodayView()
             }
             .tabItem {
                 Label("Today", systemImage: "sun.max.fill")
             }
+            .tag(MainTab.today)
 
             NavigationStack {
-                TalkToGodView()
+                TalkToGodView {
+                    selectedTab = .today
+                }
             }
             .tabItem {
                 Label("Talk", systemImage: "sparkles")
             }
+            .tag(MainTab.talk)
 
             NavigationStack {
                 ProfileView()
@@ -23,8 +29,18 @@ struct MainTabView: View {
             .tabItem {
                 Label("Profile", systemImage: "person.crop.circle.fill")
             }
+            .tag(MainTab.profile)
         }
-        .tint(Theme.accent)
+        .tint(Theme.accentText)
+        .onChange(of: selectedTab) { _, _ in
+            HapticService.selection()
+        }
+    }
+
+    private enum MainTab: Hashable {
+        case today
+        case talk
+        case profile
     }
 }
 

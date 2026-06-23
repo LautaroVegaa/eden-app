@@ -14,14 +14,14 @@ struct OptionCard: View {
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: isSelected ? "circle.inset.filled" : "circle")
-                    .foregroundStyle(isSelected ? Theme.accent : Theme.textMuted)
+                    .foregroundStyle(isSelected ? Theme.accentText : Theme.textMuted)
             }
             .padding(.vertical, 16)
             .padding(.horizontal, 18)
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(isSelected ? Theme.accent : .clear, lineWidth: 1.5)
+                    .strokeBorder(isSelected ? Theme.accentFill : .clear, lineWidth: 1.5)
             )
         }
         .buttonStyle(.plain)

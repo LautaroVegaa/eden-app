@@ -22,14 +22,16 @@ private func adaptiveColor(dark: String, light: String) -> Color {
     })
 }
 
-/// Eden brand palette. Dark is the hero look; light is supported.
-/// The gold accent is the brand constant — identical in both modes.
+/// Eden brand palette. Follows the user's system appearance.
+/// Fill gold stays bright for CTAs; text gold is deeper in light mode for contrast.
 enum Theme {
     static let background = adaptiveColor(dark: "0E1320", light: "F5F0E8")
     static let surface = adaptiveColor(dark: "1A2233", light: "FFFFFF")
     static let textPrimary = adaptiveColor(dark: "F4EFE6", light: "2A2620")
     static let textMuted = adaptiveColor(dark: "8A93A6", light: "6B6457")
 
-    static let accent = Color(UIColor(hex: "E0A955"))
+    static let accentFill = Color(UIColor(hex: "E0A955"))
+    static let accentText = adaptiveColor(dark: "E0A955", light: "B07D2E")
+    static let accent = accentFill
     static let onAccent = Color(UIColor(hex: "0E1320"))
 }

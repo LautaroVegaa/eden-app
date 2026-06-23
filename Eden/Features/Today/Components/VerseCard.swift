@@ -8,7 +8,7 @@ struct VerseCard: View {
         VStack(alignment: .leading, spacing: 10) {
             Label("YOUR VERSE", systemImage: "book.closed")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.accent)
+                .foregroundStyle(Theme.accentText)
             Text(text)
                 .font(.system(.body, design: .serif))
                 .foregroundStyle(Theme.textPrimary)
@@ -16,7 +16,7 @@ struct VerseCard: View {
                 .fixedSize(horizontal: false, vertical: true)
             Text(reference)
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(Theme.accent)
+                .foregroundStyle(Theme.accentText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)

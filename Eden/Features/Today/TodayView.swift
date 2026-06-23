@@ -4,14 +4,24 @@ import UIKit
 
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \UserProfile.createdAt, order: .reverse) private var profiles: [UserProfile]
     @StateObject private var speaker = PrayerSpeaker()
 
     @State private var phase: Phase = .loading
     @State private var shareImage: UIImage?
+    @State private var sharePayload: SharePayload?
+
+    private struct SharePayload {
+        let prayerSnippet: String
+        let verseText: String
+        let verseReference: String
+    }
 
     private enum Phase {
         case loading
+        case checkIn
+        case generating(verseReference: String, verseText: String)
         case loaded(body: String, verseReference: String, verseText: String)
         case failed(String)
     }
@@ -23,38 +33,61 @@ struct TodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     header
-
-                    switch phase {
-                    case .loading:
-                        loadingCard
-                    case let .loaded(prayerBody, verseReference, verseText):
-                        VerseCard(reference: verseReference, text: verseText)
-                        PrayerCard(
-                            body_: prayerBody,
-                            isSpeaking: speaker.isSpeaking,
-                            onToggleListen: { speaker.toggle(prayerBody) },
-                            shareImage: shareImage
-                        )
-                        if let profile {
-                            StreakCard(
-                                currentStreak: profile.currentStreak,
-                                prayedToday: prayedToday(profile),
-                                onPrayed: { registerPrayed(profile) }
-                            )
-                        }
-                    case let .failed(message):
-                        errorCard(message)
-                    }
-
-                    MedicalDisclaimerText()
-                        .padding(.top, 8)
+                    content
+                    MedicalDisclaimerText().padding(.top, 8)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 12)
                 .padding(.bottom, 40)
             }
         }
-        .task { await loadPrayer() }
+        .task { await loadCached() }
+        .toolbar(shouldHideTabBar ? .hidden : .visible, for: .tabBar)
+        .animation(.easeInOut(duration: 0.2), value: shouldHideTabBar)
+        .onChange(of: colorScheme) { _, _ in
+            rebuildShareImage()
+        }
+    }
+
+    private var shouldHideTabBar: Bool {
+        switch phase {
+        case .loaded:
+            return false
+        case .loading, .checkIn, .generating, .failed:
+            return true
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch phase {
+        case .loading:
+            loadingCard("Loading your day…")
+        case .checkIn:
+            DailyCheckInView(name: profile?.name ?? "") { feeling, note in
+                Task { await generate(feeling: feeling, note: note) }
+            }
+        case let .generating(verseReference, verseText):
+            VerseCard(reference: verseReference, text: verseText)
+            loadingCard("Writing your prayer")
+        case let .loaded(prayerBody, verseReference, verseText):
+            VerseCard(reference: verseReference, text: verseText)
+            PrayerCard(
+                body_: prayerBody,
+                isSpeaking: speaker.isSpeaking,
+                onToggleListen: { speaker.toggle(prayerBody) },
+                shareImage: shareImage
+            )
+            if let profile {
+                StreakCard(
+                    currentStreak: profile.currentStreak,
+                    prayedToday: prayedToday(profile),
+                    onPrayed: { registerPrayed(profile) }
+                )
+            }
+        case let .failed(message):
+            errorCard(message)
+        }
     }
 
     private var header: some View {
@@ -70,10 +103,10 @@ struct TodayView: View {
         .padding(.bottom, 4)
     }
 
-    private var loadingCard: some View {
+    private func loadingCard(_ message: String) -> some View {
         VStack(spacing: 14) {
-            ProgressView().tint(Theme.accent)
-            Text("Writing your prayer…")
+            EdenLoadingMark(size: 34)
+            Text(message)
                 .font(.subheadline)
                 .foregroundStyle(Theme.textMuted)
         }
@@ -87,9 +120,9 @@ struct TodayView: View {
                 .font(.subheadline)
                 .foregroundStyle(Theme.textMuted)
                 .multilineTextAlignment(.center)
-            Button("Try again") { Task { await loadPrayer(force: true) } }
+            Button("Try again") { phase = .checkIn }
                 .buttonStyle(.bordered)
-                .tint(Theme.accent)
+                .tint(Theme.accentText)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 50)
@@ -102,49 +135,57 @@ struct TodayView: View {
         return name.isEmpty ? part : "\(part), \(name)"
     }
 
-    // MARK: - Loading + caching
+    // MARK: - Load / generate
 
-    private func loadPrayer(force: Bool = false) async {
-        guard let profile else {
+    private func loadCached() async {
+        guard profile != nil else {
             phase = .failed("Finish onboarding first.")
             return
         }
-        let today = DayKey.key()
-        let struggle = profile.struggle ?? "anxiety"
-        let verse = VerseStore.shared.verse(for: struggle)
-
-        if !force, let cached = fetchCachedPrayer(for: today) {
+        if let cached = fetchCachedPrayer(for: DayKey.key()) {
             applyPrayer(cached.prayerText, reference: cached.verseReference, text: cached.verseText)
-            return
+        } else {
+            phase = .checkIn
         }
+    }
 
-        phase = .loading
+    private func generate(feeling: String, note: String) async {
+        guard let profile else { return }
+        let verse = VerseStore.shared.verse(for: "\(feeling) \(note)")
+        phase = .generating(verseReference: verse?.reference ?? "", verseText: verse?.text ?? "")
+        WidgetVerseStore.save(reference: verse?.reference ?? "", text: verse?.text ?? "")
+        HapticService.impact()
         let request = PrayerRequest(
             name: profile.name,
             gender: profile.gender ?? "",
-            struggle: struggle,
+            struggle: feeling,
             desire: profile.desire ?? "peace",
-            freeText: profile.confession,
+            freeText: note,
             verseReference: verse?.reference ?? "",
             verseText: verse?.text ?? ""
         )
-
         do {
             let text = try await PrayerService().generatePrayer(request)
-            cachePrayer(text, dateKey: today, struggle: struggle, verse: verse)
+            cachePrayer(text, dateKey: DayKey.key(), struggle: feeling, verse: verse)
             applyPrayer(text, reference: verse?.reference ?? "", text: verse?.text ?? "")
         } catch {
-            phase = .failed("Couldn't load your prayer. Check your connection and try again.")
+            phase = .failed("Couldn't write your prayer. Check your connection and try again.")
         }
     }
 
     private func applyPrayer(_ prayerText: String, reference: String, text verseText: String) {
         let body = stripTrailingVerse(prayerText)
-        // If we have no curated verse (JSON missing), fall back to the reference
-        // the AI placed at the end of the prayer.
         let ref = reference.isEmpty ? trailingVerse(prayerText) : reference
-        phase = .loaded(body: body, verseReference: ref, verseText: verseText)
-        shareImage = makeShareImage(snippet: firstSentence(body), verse: ref)
+        let resolvedVerseText = resolveVerseText(verseText, reference: ref)
+        WidgetVerseStore.save(reference: ref, text: resolvedVerseText)
+        shareImage = nil
+        phase = .loaded(body: body, verseReference: ref, verseText: resolvedVerseText)
+        sharePayload = SharePayload(
+            prayerSnippet: firstSentence(body),
+            verseText: resolvedVerseText,
+            verseReference: ref
+        )
+        rebuildShareImage()
     }
 
     private func fetchCachedPrayer(for dateKey: String) -> DailyPrayer? {
@@ -213,17 +254,30 @@ struct TodayView: View {
         return text
     }
 
+    private func resolveVerseText(_ text: String, reference: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { return trimmed }
+        return VerseStore.shared.verses.first { $0.reference == reference }?.text ?? ""
+    }
+
     @MainActor
-    private func makeShareImage(snippet: String, verse: String) -> UIImage? {
+    private func rebuildShareImage() {
+        guard let sharePayload else { return }
+        shareImage = makeShareImage(sharePayload)
+    }
+
+    @MainActor
+    private func makeShareImage(_ payload: SharePayload) -> UIImage? {
         let renderer = ImageRenderer(
-            content: ShareCardView(snippet: snippet, verse: verse).frame(width: 1080, height: 1920)
+            content: ShareCardView(
+                prayerSnippet: payload.prayerSnippet,
+                verseText: payload.verseText,
+                verseReference: payload.verseReference
+            )
+            .environment(\.colorScheme, colorScheme)
+            .frame(width: 1080, height: 1920)
         )
         renderer.scale = 1.0
         return renderer.uiImage
     }
-}
-
-#Preview {
-    NavigationStack { TodayView() }
-        .modelContainer(for: [UserProfile.self, DailyPrayer.self], inMemory: true)
 }

@@ -1,4 +1,5 @@
 import Foundation
+import RevenueCat
 
 struct PrayerRequest: Encodable {
     let name: String
@@ -8,6 +9,41 @@ struct PrayerRequest: Encodable {
     let freeText: String
     let verseReference: String
     let verseText: String
+}
+
+struct ChatTurn: Encodable {
+    let role: String
+    let text: String
+}
+
+private struct ChatRequest: Encodable {
+    let name: String
+    let messages: [ChatTurn]
+    let appUserId: String
+}
+
+/// Wire body for a prayer request — the caller's PrayerRequest plus the
+/// RevenueCat app user id (so the Worker can verify the subscription).
+private struct PrayerWireBody: Encodable {
+    let name: String
+    let gender: String
+    let struggle: String
+    let desire: String
+    let freeText: String
+    let verseReference: String
+    let verseText: String
+    let appUserId: String
+
+    init(_ r: PrayerRequest, appUserId: String) {
+        name = r.name
+        gender = r.gender
+        struggle = r.struggle
+        desire = r.desire
+        freeText = r.freeText
+        verseReference = r.verseReference
+        verseText = r.verseText
+        self.appUserId = appUserId
+    }
 }
 
 private struct PrayerResponse: Decodable {
@@ -32,8 +68,9 @@ struct PrayerService {
     func generatePrayer(_ request: PrayerRequest) async throws -> String {
         var urlRequest = URLRequest(url: AppConfig.prayerEndpoint)
         urlRequest.httpMethod = "POST"
+        urlRequest.timeoutInterval = 20
         urlRequest.setValue("application/json", forHTTPHeaderField: "content-type")
-        urlRequest.httpBody = try JSONEncoder().encode(request)
+        urlRequest.httpBody = try JSONEncoder().encode(PrayerWireBody(request, appUserId: Purchases.shared.appUserID))
 
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
@@ -45,5 +82,27 @@ struct PrayerService {
             throw PrayerServiceError.empty
         }
         return prayer
+    }
+
+    /// Focused prayer-companion chat. Sends the conversation history; the Worker
+    /// keeps it in the faith/prayer lane and returns Eden's reply.
+    func chat(name: String, messages: [ChatTurn]) async throws -> String {
+        var urlRequest = URLRequest(url: AppConfig.prayerEndpoint)
+        urlRequest.httpMethod = "POST"
+        urlRequest.timeoutInterval = 20
+        urlRequest.setValue("application/json", forHTTPHeaderField: "content-type")
+        urlRequest.httpBody = try JSONEncoder().encode(
+            ChatRequest(name: name, messages: messages, appUserId: Purchases.shared.appUserID)
+        )
+
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw PrayerServiceError.server
+        }
+        let decoded = try JSONDecoder().decode(PrayerResponse.self, from: data)
+        guard let reply = decoded.prayer, !reply.isEmpty else {
+            throw PrayerServiceError.empty
+        }
+        return reply
     }
 }

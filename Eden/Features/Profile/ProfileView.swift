@@ -3,8 +3,26 @@ import SwiftData
 
 struct ProfileView: View {
     @Query(sort: \UserProfile.createdAt, order: .reverse) private var profiles: [UserProfile]
+    @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(\.openURL) private var openURL
+    @EnvironmentObject private var purchases: PurchaseManager
+    @AppStorage(HapticService.enabledKey) private var hapticsEnabled = true
+    @AppStorage(AppAppearance.storageKey) private var appearanceMode = AppAppearance.system.rawValue
+    @State private var showingEdit = false
+    @State private var isRestoringPurchases = false
+    @State private var subscriptionMessage: String?
 
     private var profile: UserProfile? { profiles.first }
+    private var appearance: AppAppearance { AppAppearance(rawValue: appearanceMode) ?? .system }
+    private var isDarkMode: Binding<Bool> {
+        Binding(
+            get: {
+                if appearance == .system { return systemColorScheme == .dark }
+                return appearance == .dark
+            },
+            set: { appearanceMode = $0 ? AppAppearance.dark.rawValue : AppAppearance.light.rawValue }
+        )
+    }
 
     var body: some View {
         ScreenContainer {
@@ -16,6 +34,9 @@ struct ProfileView: View {
                         profileSummary(profile)
                         streakSummary(profile)
                         prayerSchedule(profile)
+                        subscriptionCard
+                        settingsCard
+                        legalCard
                     } else {
                         emptyState
                     }
@@ -28,16 +49,30 @@ struct ProfileView: View {
                 .padding(.bottom, 40)
             }
         }
+        .sheet(isPresented: $showingEdit) {
+            if let profile { EditProfileView(profile: profile) }
+        }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Profile")
-                .font(.system(.largeTitle, design: .serif).weight(.semibold))
-                .foregroundStyle(Theme.textPrimary)
-            Text("Your prayer rhythm, kept on this iPhone.")
-                .font(.subheadline)
-                .foregroundStyle(Theme.textMuted)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Profile")
+                    .font(.system(.largeTitle, design: .serif).weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("Your prayer rhythm, kept on this iPhone.")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textMuted)
+            }
+            Spacer()
+            if profile != nil {
+                Button("Edit") {
+                    HapticService.selection()
+                    showingEdit = true
+                }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.accentText)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, 4)
@@ -48,6 +83,152 @@ struct ProfileView: View {
             ProfileRow(icon: "person.fill", title: "Name", value: profile.name.isEmpty ? "Not set" : profile.name)
             ProfileRow(icon: "heart.fill", title: "Main weight", value: profile.struggle ?? "Not set")
             ProfileRow(icon: "sparkles", title: "Praying for", value: profile.desire ?? "Peace")
+        }
+        .padding(18)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var subscriptionCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                GlassSymbolBadge(systemName: purchases.isSubscribed ? "checkmark.seal.fill" : "creditcard.fill")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Subscription")
+                        .font(.headline)
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(purchases.isSubscribed ? "Premium access is active." : "Manage your Eden access.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textMuted)
+                }
+                Spacer()
+                Text(purchases.isSubscribed ? "Active" : "Locked")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(purchases.isSubscribed ? Theme.accentText : Theme.textMuted)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Theme.accentFill.opacity(purchases.isSubscribed ? 0.16 : 0.08), in: Capsule())
+            }
+
+            Divider()
+                .overlay(Theme.textMuted.opacity(0.18))
+
+            Button {
+                HapticService.selection()
+                openURL(AppConfig.manageSubscriptionsURL)
+            } label: {
+                ProfileActionRow(
+                    icon: "slider.horizontal.3",
+                    title: "Manage subscription",
+                    subtitle: "Change or cancel from your Apple account"
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                Task { await restorePurchases() }
+            } label: {
+                ProfileActionRow(
+                    icon: isRestoringPurchases ? "arrow.triangle.2.circlepath" : "arrow.clockwise",
+                    title: isRestoringPurchases ? "Restoring purchases" : "Restore purchases",
+                    subtitle: "Use this if you already subscribed"
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(isRestoringPurchases)
+
+            if let subscriptionMessage {
+                Text(subscriptionMessage)
+                    .font(.caption)
+                    .foregroundStyle(Theme.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(18)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+        .animation(.easeInOut(duration: 0.2), value: subscriptionMessage)
+    }
+
+    private var legalCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                GlassSymbolBadge(systemName: "doc.text.fill")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Legal & support")
+                        .font(.headline)
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Eden uses Anthropic (Claude AI) to write prayers.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textMuted)
+                }
+                Spacer()
+            }
+
+            Divider().overlay(Theme.textMuted.opacity(0.18))
+
+            Button { openURL(AppConfig.privacyPolicyURL) } label: {
+                ProfileActionRow(icon: "lock.shield", title: "Privacy Policy", subtitle: "How your data is used and shared")
+            }
+            .buttonStyle(.plain)
+
+            Button { openURL(AppConfig.termsURL) } label: {
+                ProfileActionRow(icon: "doc.plaintext", title: "Terms of Use", subtitle: "The agreement for using Eden")
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(18)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var settingsCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                GlassSymbolBadge(systemName: "circle.lefthalf.filled")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Dark mode")
+                        .font(.headline)
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(appearance == .system ? "Following this iPhone." : "Set manually.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textMuted)
+                }
+                Spacer()
+                Toggle("", isOn: isDarkMode)
+                    .labelsHidden()
+                    .tint(Theme.accentFill)
+            }
+
+            if appearance != .system {
+                Button("Use iPhone setting") {
+                    HapticService.selection()
+                    appearanceMode = AppAppearance.system.rawValue
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.accentText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Divider()
+                .overlay(Theme.textMuted.opacity(0.18))
+
+            HStack(spacing: 12) {
+                GlassSymbolBadge(systemName: "hand.tap.fill")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Haptic feedback")
+                        .font(.headline)
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Subtle taps on navigation and key actions.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textMuted)
+                }
+                Spacer()
+                Toggle("", isOn: $hapticsEnabled)
+                    .labelsHidden()
+                    .tint(Theme.accentFill)
+                    .onChange(of: hapticsEnabled) { _, newValue in
+                        if newValue { HapticService.success() }
+                    }
+            }
         }
         .padding(18)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
@@ -85,12 +266,64 @@ struct ProfileView: View {
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
     }
 
+    @MainActor
+    private func restorePurchases() async {
+        guard !isRestoringPurchases else { return }
+        isRestoringPurchases = true
+        subscriptionMessage = nil
+        HapticService.selection()
+
+        await purchases.restore()
+        await purchases.refresh()
+
+        if purchases.isSubscribed {
+            HapticService.success()
+            subscriptionMessage = "Purchases restored. Premium is active."
+        } else {
+            subscriptionMessage = "No active subscription found for this Apple ID."
+        }
+
+        isRestoringPurchases = false
+    }
+
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         formatter.dateStyle = .none
         return formatter
     }()
+}
+
+private struct ProfileActionRow: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .symbolRenderingMode(.hierarchical)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Theme.accentText)
+                .frame(width: 28, height: 28)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(Theme.textMuted)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.textMuted.opacity(0.75))
+        }
+        .contentShape(Rectangle())
+    }
 }
 
 private struct ProfileRow: View {
@@ -143,12 +376,12 @@ private struct GlassSymbolBadge: View {
         Image(systemName: systemName)
             .symbolRenderingMode(.hierarchical)
             .font(.system(size: 17, weight: .semibold))
-            .foregroundStyle(Theme.accent)
+            .foregroundStyle(Theme.accentText)
             .frame(width: 38, height: 38)
             .background(.ultraThinMaterial, in: Circle())
             .overlay(
                 Circle()
-                    .strokeBorder(Theme.accent.opacity(0.22), lineWidth: 1)
+                    .strokeBorder(Theme.accentText.opacity(0.22), lineWidth: 1)
             )
     }
 }
@@ -156,4 +389,5 @@ private struct GlassSymbolBadge: View {
 #Preview {
     NavigationStack { ProfileView() }
         .modelContainer(for: [UserProfile.self, DailyPrayer.self], inMemory: true)
+        .environmentObject(PurchaseManager())
 }

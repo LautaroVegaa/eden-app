@@ -28,7 +28,7 @@ final class PrayerNotificationService {
         components.second = 0
 
         let content = UNMutableNotificationContent()
-        content.title = "Your prayer is ready"
+        content.title = "Time to pray"
         content.body = "Take one minute with God before your mind starts racing."
         content.sound = .default
 

@@ -8,7 +8,7 @@ struct StreakCard: View {
     var body: some View {
         VStack(spacing: 16) {
             HStack(spacing: 8) {
-                Image(systemName: "flame.fill").foregroundStyle(Theme.accent)
+                Image(systemName: "flame.fill").foregroundStyle(Theme.accentText)
                 Text("\(currentStreak) day\(currentStreak == 1 ? "" : "s")")
                     .font(.headline)
                     .foregroundStyle(Theme.textPrimary)
