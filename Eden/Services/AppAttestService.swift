@@ -28,6 +28,12 @@ final class AppAttestService {
 
     var isSupported: Bool { service.isSupported }
 
+    /// Forget the server registration after a successful privacy deletion.
+    /// The next protected request creates and registers a fresh App Attest key.
+    func resetLocalRegistration() {
+        UserDefaults.standard.removeObject(forKey: keyIdDefaultsKey)
+    }
+
     /// Attestation headers for a Worker request body. Empty when unsupported or on
     /// any failure — never throws into the caller's request path.
     func headers(for body: Data) async -> [String: String] {

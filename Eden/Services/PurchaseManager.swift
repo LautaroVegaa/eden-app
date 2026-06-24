@@ -11,6 +11,7 @@ final class PurchaseManager: NSObject, ObservableObject {
     @Published var offering: Offering?
     @Published var isPurchasing = false
     @Published var isReady = false
+    @Published private(set) var lastErrorMessage: String?
 
     /// Drives the paywall cover over the app. Non-subscribers can dismiss it (the
     /// "X") into a limited experience; any paid action re-presents it.
@@ -38,31 +39,41 @@ final class PurchaseManager: NSObject, ObservableObject {
 
     func start() async {
         Purchases.shared.delegate = self
-        await loadOffering()
-        await refresh()
+        do {
+            try await loadOffering()
+            try await refresh()
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = error.localizedDescription
+        }
         isReady = true
     }
 
-    func refresh() async {
+    func refresh() async throws {
         if debugPremium { isSubscribed = true; return }
-        guard let info = try? await Purchases.shared.customerInfo() else { return }
+        let info = try await Purchases.shared.customerInfo()
         apply(info)
     }
 
-    func loadOffering() async {
-        offering = try? await Purchases.shared.offerings().current
+    func loadOffering() async throws {
+        offering = try await Purchases.shared.offerings().current
     }
 
-    func purchase(_ package: Package) async {
+    func purchase(_ package: Package) async throws {
         isPurchasing = true
         defer { isPurchasing = false }
-        guard let result = try? await Purchases.shared.purchase(package: package) else { return }
+        let result = try await Purchases.shared.purchase(package: package)
         apply(result.customerInfo)
     }
 
-    func restore() async {
-        guard let info = try? await Purchases.shared.restorePurchases() else { return }
+    func restore() async throws {
+        let info = try await Purchases.shared.restorePurchases()
         apply(info)
+    }
+
+    func markCustomerDataDeleted() {
+        isSubscribed = false
+        showPaywall = false
     }
 
     func apply(_ customerInfo: CustomerInfo) {

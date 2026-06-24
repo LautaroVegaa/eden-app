@@ -38,6 +38,11 @@ struct MainTabView: View {
         .onChange(of: selectedTab) { _, _ in
             HapticService.selection()
         }
+        .onChange(of: hasSeenFirstPrayer) { _, hasSeen in
+            if hasSeen && !purchases.isSubscribed {
+                purchases.showPaywall = true
+            }
+        }
         .task {
             // Present the paywall to non-subscribers only AFTER they've spent their
             // free first prayer (done in Today's check-in). New users get the aha first.

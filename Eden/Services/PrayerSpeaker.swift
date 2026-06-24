@@ -49,6 +49,7 @@ final class PrayerSpeaker: NSObject, ObservableObject {
     }
 
     private func fetchAudio(_ text: String) async -> Data? {
+        guard UserDefaults.standard.bool(forKey: AppConfig.aiConsentKey) else { return nil }
         var req = URLRequest(url: AppConfig.ttsEndpoint)
         req.httpMethod = "POST"
         req.timeoutInterval = 30

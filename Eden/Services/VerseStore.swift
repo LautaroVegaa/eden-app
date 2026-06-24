@@ -6,7 +6,8 @@ struct Verse: Decodable, Equatable {
     let tags: [String]
 }
 
-    /// Loads the embedded, curated public-domain verse list and picks an
+    /// Loads the embedded, curated public-domain World English Bible (WEB)
+    /// verse list and picks an
 /// accurate "verse of the day" by struggle. This is the source of truth for
 /// verse text — the AI is told to use it, never to invent its own.
 final class VerseStore {

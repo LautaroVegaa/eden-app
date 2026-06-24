@@ -31,33 +31,33 @@ struct OnboardingContainer: View {
         switch draft.struggle {
         case "Fear about the future":
             return [
-                "\"For I know the plans I have for you, plans to prosper you and not to harm you.\" Jeremiah 29:11",
-                "\"Do not fear, for I am with you; do not be dismayed, for I am your God.\" Isaiah 41:10",
-                "\"Be strong and courageous. Do not be afraid, for the Lord your God will be with you wherever you go.\" Joshua 1:9"
+                "\"For I know the thoughts that I think toward you, thoughts of peace and not of evil, to give you hope and a future.\" Jeremiah 29:11",
+                "\"Don’t you be afraid, for I am with you. Don’t be dismayed, for I am your God.\" Isaiah 41:10",
+                "\"Haven’t I commanded you? Be strong and courageous. Don’t be afraid. Don’t be dismayed, for the Lord your God is with you wherever you go.\" Joshua 1:9"
             ]
         case "Loneliness":
             return [
-                "\"He will never leave you nor forsake you.\" Deuteronomy 31:6",
-                "\"The Lord is close to the brokenhearted and saves those who are crushed in spirit.\" Psalm 34:18",
-                "\"Surely I am with you always, to the very end of the age.\" Matthew 28:20"
+                "\"The Lord your God himself goes with you. He will not fail you nor forsake you.\" Deuteronomy 31:6",
+                "\"The Lord is near to those who have a broken heart, and saves those who have a crushed spirit.\" Psalm 34:18",
+                "\"Behold, I am with you always, even to the end of the age.\" Matthew 28:20"
             ]
         case "Doubt":
             return [
-                "\"I do believe; help me overcome my unbelief.\" Mark 9:24",
-                "\"Trust in the Lord with all your heart and lean not on your own understanding.\" Proverbs 3:5",
-                "\"Now faith is confidence in what we hope for and assurance about what we do not see.\" Hebrews 11:1"
+                "\"I believe. Help my unbelief!\" Mark 9:24",
+                "\"Trust in the Lord with all your heart, and don’t lean on your own understanding.\" Proverbs 3:5-6",
+                "\"Now faith is assurance of things hoped for, proof of things not seen.\" Hebrews 11:1"
             ]
         case "Relationships":
             return [
-                "\"Love is patient, love is kind.\" 1 Corinthians 13:4",
-                "\"Bear with each other and forgive one another.\" Colossians 3:13",
-                "\"If it is possible, as far as it depends on you, live at peace with everyone.\" Romans 12:18"
+                "\"Love is patient and is kind. Love doesn’t envy. Love doesn’t brag, is not proud.\" 1 Corinthians 13:4-5",
+                "\"Bear with one another, and forgive each other, if anyone has a complaint against another.\" Colossians 3:13",
+                "\"If it is possible, as much as it is up to you, be at peace with all men.\" Romans 12:18"
             ]
         default: // Anxiety
             return [
-                "\"Cast all your anxiety on him, because he cares for you.\" 1 Peter 5:7",
-                "\"Be still, and know that I am God.\" Psalm 46:10",
-                "\"When anxiety was great within me, your consolation brought me joy.\" Psalm 94:19"
+                "\"Casting all your worries on him, because he cares for you.\" 1 Peter 5:7",
+                "\"Be still, and know that I am God. I will be exalted among the nations.\" Psalm 46:10",
+                "\"In the multitude of my thoughts within me, your comforts delight my soul.\" Psalm 94:19"
             ]
         }
     }
@@ -148,7 +148,7 @@ struct OnboardingContainer: View {
         case .gender:
             OnboardingSingleSelect(
                 title: "How did God create you?",
-                subtitle: "\"I praise you, for I am fearfully and wonderfully made.\" Psalm 139:14",
+                subtitle: "\"I will give thanks to you, for I am fearfully and wonderfully made.\" Psalm 139:14",
                 options: ["I'm a woman", "I'm a man"],
                 onSelect: { draft.gender = $0; advance() }
             )

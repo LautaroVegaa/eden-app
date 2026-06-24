@@ -83,7 +83,7 @@ struct OnboardingConfession: View {
             (
                 Text("By tapping ")
                 + Text("Build My Prayer").fontWeight(.semibold)
-                + Text(", you agree Eden sends what you share to Anthropic (Claude AI), through Eden's secure server, to write your prayer.")
+                + Text(", you agree Eden sends your first name and what you share through its secure server to Anthropic (Claude AI) to write your prayer. If you use Listen, the generated prayer is sent to OpenAI to create temporary audio. Eden does not store this content on its servers.")
             )
             .font(.caption2)
             .foregroundStyle(Theme.textMuted)

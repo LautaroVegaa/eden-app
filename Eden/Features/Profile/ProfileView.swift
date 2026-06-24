@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import RevenueCat
 
 struct ProfileView: View {
     @Query(sort: \UserProfile.createdAt, order: .reverse) private var profiles: [UserProfile]
@@ -8,9 +9,13 @@ struct ProfileView: View {
     @EnvironmentObject private var purchases: PurchaseManager
     @AppStorage(HapticService.enabledKey) private var hapticsEnabled = true
     @AppStorage(AppAppearance.storageKey) private var appearanceMode = AppAppearance.system.rawValue
+    @AppStorage(AppConfig.aiConsentKey) private var aiConsentGranted = false
     @State private var showingEdit = false
     @State private var isRestoringPurchases = false
     @State private var subscriptionMessage: String?
+    @State private var showingDeleteConfirmation = false
+    @State private var isDeletingCloudData = false
+    @State private var privacyMessage: String?
 
     private var profile: UserProfile? { profiles.first }
     private var appearance: AppAppearance { AppAppearance(rawValue: appearanceMode) ?? .system }
@@ -36,6 +41,7 @@ struct ProfileView: View {
                         prayerSchedule(profile)
                         subscriptionCard
                         settingsCard
+                        privacyDataCard
                         legalCard
                     } else {
                         emptyState
@@ -51,6 +57,18 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showingEdit) {
             if let profile { EditProfileView(profile: profile) }
+        }
+        .confirmationDialog(
+            "Delete Eden cloud data?",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete cloud data", role: .destructive) {
+                Task { await deleteCloudData() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This deletes Eden's usage ledger, App Attest registration, and RevenueCat customer record. It does not cancel an Apple subscription or delete prayers stored on this iPhone.")
         }
     }
 
@@ -157,7 +175,7 @@ struct ProfileView: View {
                     Text("Legal & support")
                         .font(.headline)
                         .foregroundStyle(Theme.textPrimary)
-                    Text("Eden uses Anthropic (Claude AI) to write prayers.")
+                    Text("AI processing and World English Bible (WEB) sources are documented here.")
                         .font(.caption)
                         .foregroundStyle(Theme.textMuted)
                 }
@@ -175,6 +193,70 @@ struct ProfileView: View {
                 ProfileActionRow(icon: "doc.plaintext", title: "Terms of Use", subtitle: "The agreement for using Eden")
             }
             .buttonStyle(.plain)
+        }
+        .padding(18)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var privacyDataCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                GlassSymbolBadge(systemName: "hand.raised.fill")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Privacy & data")
+                        .font(.headline)
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(aiConsentGranted ? "AI data sharing is allowed." : "AI data sharing is off.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textMuted)
+                }
+                Spacer()
+            }
+
+            Divider().overlay(Theme.textMuted.opacity(0.18))
+
+            Button {
+                HapticService.selection()
+                aiConsentGranted = false
+                privacyMessage = "AI consent withdrawn. Eden will ask again before sending content to Anthropic or OpenAI."
+            } label: {
+                ProfileActionRow(
+                    icon: "hand.raised.slash",
+                    title: "Withdraw AI consent",
+                    subtitle: "Stops future AI requests until you agree again"
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(!aiConsentGranted)
+            .opacity(aiConsentGranted ? 1 : 0.55)
+
+            Button {
+                showingDeleteConfirmation = true
+            } label: {
+                ProfileActionRow(
+                    icon: isDeletingCloudData ? "arrow.triangle.2.circlepath" : "trash",
+                    title: isDeletingCloudData ? "Deleting cloud data" : "Delete cloud data",
+                    subtitle: "Erase Eden and RevenueCat server records"
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(isDeletingCloudData)
+
+            Button { openURL(privacySupportURL) } label: {
+                ProfileActionRow(
+                    icon: "envelope",
+                    title: "Privacy support",
+                    subtitle: "Request help with access or deletion"
+                )
+            }
+            .buttonStyle(.plain)
+
+            if let privacyMessage {
+                Text(privacyMessage)
+                    .font(.caption)
+                    .foregroundStyle(Theme.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(18)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
@@ -273,17 +355,52 @@ struct ProfileView: View {
         subscriptionMessage = nil
         HapticService.selection()
 
-        await purchases.restore()
-        await purchases.refresh()
-
-        if purchases.isSubscribed {
-            HapticService.success()
-            subscriptionMessage = "Purchases restored. Premium is active."
-        } else {
-            subscriptionMessage = "No active subscription found for this Apple ID."
+        do {
+            try await purchases.restore()
+            if purchases.isSubscribed {
+                HapticService.success()
+                subscriptionMessage = "Purchases restored. Premium is active."
+            } else {
+                subscriptionMessage = "Restore completed. No active subscription was found for this Apple ID."
+            }
+        } catch {
+            subscriptionMessage = "Couldn't restore purchases. Check your connection and try again."
         }
 
         isRestoringPurchases = false
+    }
+
+    @MainActor
+    private func deleteCloudData() async {
+        guard !isDeletingCloudData else { return }
+        isDeletingCloudData = true
+        privacyMessage = nil
+        HapticService.selection()
+
+        do {
+            try await DataPrivacyService().deleteCloudData()
+            aiConsentGranted = false
+            purchases.markCustomerDataDeleted()
+            HapticService.success()
+            privacyMessage = "Cloud data deleted. Prayers stored on this iPhone remain until you delete the app."
+        } catch {
+            privacyMessage = error.localizedDescription
+        }
+        isDeletingCloudData = false
+    }
+
+    private var privacySupportURL: URL {
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = "edensupport@gmail.com"
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: "Eden privacy request"),
+            URLQueryItem(
+                name: "body",
+                value: "Please help with my privacy request. My anonymous Eden identifier is: \(Purchases.shared.appUserID)"
+            ),
+        ]
+        return components.url ?? AppConfig.supportEmailURL
     }
 
     private static let timeFormatter: DateFormatter = {

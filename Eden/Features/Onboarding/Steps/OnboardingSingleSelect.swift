@@ -10,12 +10,12 @@ struct OnboardingSingleSelect: View {
     @State private var selected: String?
 
     var body: some View {
-        VStack(spacing: 0) {
-            OnboardingHeader(title: title, subtitle: subtitle)
-                .padding(.top, 40)
-                .padding(.horizontal, 24)
+        ScrollView {
+            VStack(spacing: 0) {
+                OnboardingHeader(title: title, subtitle: subtitle)
+                    .padding(.top, 40)
+                    .padding(.horizontal, 24)
 
-            ScrollView {
                 VStack(spacing: 10) {
                     ForEach(options, id: \.self) { option in
                         OptionCard(text: option, isSelected: selected == option) {

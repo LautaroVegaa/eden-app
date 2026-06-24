@@ -13,6 +13,10 @@ enum AppConfig {
     /// Text-to-speech endpoint on the Worker (OpenAI "onyx" voice). Returns mp3.
     static let ttsEndpoint = URL(string: "https://eden-prayer.lautarocarignani.workers.dev/tts")!
 
+    /// Authenticated endpoint that erases the current anonymous customer's
+    /// server-side ledger, App Attest registration, and RevenueCat profile.
+    static let dataDeletionEndpoint = URL(string: "https://eden-prayer.lautarocarignani.workers.dev/privacy/delete")!
+
     /// RevenueCat public SDK key (safe to ship in the app — the secret key lives
     /// only in the Worker for server-side verification).
     static let revenueCatKey = "appl_SRaqynXhWhUFSUkVlsOexTbjDox"
@@ -27,9 +31,11 @@ enum AppConfig {
     // (replacing the broken 127.0.0.1 links).
     static let privacyPolicyURL = URL(string: "https://geteden.site/privacy.html")!
     static let termsURL = URL(string: "https://geteden.site/terms.html")!
+    static let supportEmailURL = URL(string: "mailto:edensupport@gmail.com?subject=Eden%20privacy%20support")!
 
     /// Set true once the user explicitly accepts that what they share is sent
-    /// to Anthropic (AI) through Eden's server. Gates AI requests.
+    /// through Eden's server to Anthropic for text generation and, only when
+    /// they use Listen, to OpenAI for temporary text-to-speech processing.
     static let aiConsentKey = "eden.aiConsentGranted"
 
     /// Set true after the user has seen their one free prayer (the "aha" right
