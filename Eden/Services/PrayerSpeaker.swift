@@ -1,6 +1,6 @@
 import AVFoundation
 
-/// On-device text-to-speech (free) for the "Listen" button — read your prayer
+/// On-device text-to-speech (free) for the "Listen" button. Reads your prayer
 /// with your eyes closed. Picks the deepest, calmest male voice available and
 /// lowers pitch + rate for a grounded, reverent tone.
 final class PrayerSpeaker: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {

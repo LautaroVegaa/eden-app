@@ -63,7 +63,9 @@ struct EditProfileView: View {
         profile.desire = desire
         profile.mindRaceTime = time
         try? modelContext.save()
-        Task { await PrayerNotificationService.shared.scheduleDailyPrayer(at: time) }
+        // Request authorization too, in case notifications were skipped at
+        // onboarding — otherwise setting a time here would silently never fire.
+        Task { _ = await PrayerNotificationService.shared.requestAndScheduleDailyPrayer(at: time) }
         dismiss()
     }
 }

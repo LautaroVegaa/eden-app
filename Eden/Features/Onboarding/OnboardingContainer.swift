@@ -59,20 +59,20 @@ struct OnboardingContainer: View {
         case .words:
             OnboardingSingleSelect(
                 title: "Do you ever struggle to find the words to pray?",
-                subtitle: "If you do — that's exactly what Eden is for.",
+                subtitle: "If you do, that's exactly what Eden is for.",
                 options: ["Yes, always", "Sometimes", "No, I'm good with words"],
                 onSelect: { draft.wordsStruggle = $0; advance() }
             )
         case .mindRace:
             OnboardingTimePicker(
                 title: "When does your mind race the most?",
-                subtitle: "We'll send your prayer right before that moment.",
+                subtitle: "We'll remind you to pray right at that moment.",
                 onContinue: { draft.mindRaceTime = $0; advance() }
             )
         case .beat:
             OnboardingBeat(
                 title: "You're not the only one awake right now.",
-                message: "Thousands of Christians your age feel exactly this — tonight.",
+                message: "Thousands of Christians your age feel exactly this tonight.",
                 onContinue: advance
             )
         case .desire:
@@ -87,16 +87,16 @@ struct OnboardingContainer: View {
                 title: "Which one hits hardest right now?",
                 subtitle: "Tap the one your heart needs today.",
                 options: [
-                    "\"Cast all your anxiety on him, because he cares for you.\" — 1 Peter 5:7",
-                    "\"Be still, and know that I am God.\" — Psalm 46:10",
-                    "\"When anxiety was great within me, your consolation brought me joy.\" — Psalm 94:19"
+                    "\"Cast all your anxiety on him, because he cares for you.\" 1 Peter 5:7",
+                    "\"Be still, and know that I am God.\" Psalm 46:10",
+                    "\"When anxiety was great within me, your consolation brought me joy.\" Psalm 94:19"
                 ],
                 onSelect: { draft.verse = $0; advance() }
             )
         case .gender:
             OnboardingSingleSelect(
                 title: "How did God create you?",
-                subtitle: "\"I praise you, for I am fearfully and wonderfully made.\" — Psalm 139:14",
+                subtitle: "\"I praise you, for I am fearfully and wonderfully made.\" Psalm 139:14",
                 options: ["I'm a woman", "I'm a man"],
                 onSelect: { draft.gender = $0; advance() }
             )

@@ -29,7 +29,7 @@ final class PrayerNotificationService {
 
         let content = UNMutableNotificationContent()
         content.title = "Time to pray"
-        content.body = "Take one minute with God before your mind starts racing."
+        content.body = "Share what's on your heart and receive a prayer made for this moment."
         content.sound = .default
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
