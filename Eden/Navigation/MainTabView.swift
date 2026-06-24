@@ -38,14 +38,11 @@ struct MainTabView: View {
         .onChange(of: selectedTab) { _, _ in
             HapticService.selection()
         }
-        .onChange(of: hasSeenFirstPrayer) { _, hasSeen in
-            if hasSeen && !purchases.isSubscribed {
-                purchases.showPaywall = true
-            }
-        }
         .task {
-            // Present the paywall to non-subscribers only AFTER they've spent their
-            // free first prayer (done in Today's check-in). New users get the aha first.
+            // Returning non-subscribers who already spent their free prayer see the
+            // paywall on launch. Within the first session we do NOT slam it on top of
+            // the free prayer — the user must be able to read (the aha). The paywall
+            // then triggers on the next paid action (new prayer, chat, Listen).
             if !purchases.isSubscribed && hasSeenFirstPrayer { purchases.showPaywall = true }
         }
         .fullScreenCover(isPresented: $purchases.showPaywall) {
