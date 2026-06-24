@@ -9,6 +9,7 @@ struct TalkToGodView: View {
     var onBack: () -> Void = {}
 
     @Query(sort: \UserProfile.createdAt, order: .reverse) private var profiles: [UserProfile]
+    @EnvironmentObject private var purchases: PurchaseManager
     @StateObject private var speaker = PrayerSpeaker()
 
     @State private var messages: [ChatMessage] = []
@@ -181,6 +182,8 @@ struct TalkToGodView: View {
     }
 
     private func send(_ text: String) {
+        // Chat is a paid feature — present the paywall to non-subscribers.
+        guard purchases.requireSubscription() else { return }
         let content = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty, !sending, ChatLimiter.canSend() else {
             remaining = ChatLimiter.remaining()

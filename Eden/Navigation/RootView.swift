@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import RevenueCatUI
 
 /// Flow: splash -> onboarding (once) -> one free prayer -> hard paywall -> app.
 struct RootView: View {
@@ -32,15 +31,17 @@ struct RootView: View {
             NavigationStack { OnboardingView() }
         } else if !purchases.isReady {
             SplashView()
-        } else if purchases.isSubscribed {
-            MainTabView()
-        } else if !hasSeenFirstPrayer, let profile = profiles.first {
+        } else if !purchases.isSubscribed, !hasSeenFirstPrayer, let profile = profiles.first {
+            // One free prayer (the "aha") before the paywall ever appears.
             FirstPrayerRevealView(profile: profile) {
                 HapticService.selection()
                 withAnimation(.easeInOut(duration: 0.35)) { hasSeenFirstPrayer = true }
             }
         } else {
-            revenueCatPaywall
+            // Subscribers: full app. Non-subscribers: limited app with the
+            // paywall presented over it (dismissable X -> limited; paid actions
+            // re-present it). MainTabView owns that cover.
+            MainTabView()
         }
     }
 
@@ -49,17 +50,6 @@ struct RootView: View {
     private func dismissSplashAfterMinimum() async {
         try? await Task.sleep(nanoseconds: 1_400_000_000)
         withAnimation(.easeInOut(duration: 0.45)) { showSplash = false }
-    }
-
-    private var revenueCatPaywall: some View {
-        PaywallView(displayCloseButton: false)
-            .onPurchaseCompleted { customerInfo in
-                purchases.apply(customerInfo)
-            }
-            .onRestoreCompleted { customerInfo in
-                purchases.apply(customerInfo)
-            }
-            .ignoresSafeArea()
     }
 
     #if DEBUG

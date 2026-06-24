@@ -12,6 +12,19 @@ final class PurchaseManager: NSObject, ObservableObject {
     @Published var isPurchasing = false
     @Published var isReady = false
 
+    /// Drives the paywall cover over the app. Non-subscribers can dismiss it (the
+    /// "X") into a limited experience; any paid action re-presents it.
+    @Published var showPaywall = false
+
+    /// Gate a paid action. Returns true if the user may proceed (subscribed);
+    /// otherwise presents the paywall and returns false.
+    @discardableResult
+    func requireSubscription() -> Bool {
+        if isSubscribed { return true }
+        showPaywall = true
+        return false
+    }
+
     #if DEBUG
     // Dev bypass: launch with SIMCTL_CHILD_EDEN_PREMIUM=1 to skip the paywall.
     private let debugPremium = ProcessInfo.processInfo.environment["EDEN_PREMIUM"] == "1"
@@ -55,9 +68,11 @@ final class PurchaseManager: NSObject, ObservableObject {
     func apply(_ customerInfo: CustomerInfo) {
         if debugPremium {
             isSubscribed = true
+            showPaywall = false
             return
         }
         isSubscribed = hasPremiumAccess(customerInfo)
+        if isSubscribed { showPaywall = false }
     }
 
     private func hasPremiumAccess(_ customerInfo: CustomerInfo) -> Bool {

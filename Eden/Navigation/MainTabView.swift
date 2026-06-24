@@ -1,6 +1,8 @@
 import SwiftUI
+import RevenueCatUI
 
 struct MainTabView: View {
+    @EnvironmentObject private var purchases: PurchaseManager
     @State private var selectedTab: MainTab = .today
 
     var body: some View {
@@ -35,6 +37,24 @@ struct MainTabView: View {
         .onChange(of: selectedTab) { _, _ in
             HapticService.selection()
         }
+        .task {
+            // Greet non-subscribers (limited mode) with the paywall on entry.
+            if !purchases.isSubscribed { purchases.showPaywall = true }
+        }
+        .fullScreenCover(isPresented: $purchases.showPaywall) {
+            paywallCover
+        }
+    }
+
+    private var paywallCover: some View {
+        PaywallView(displayCloseButton: true)
+            .onPurchaseCompleted { customerInfo in
+                purchases.apply(customerInfo)
+            }
+            .onRestoreCompleted { customerInfo in
+                purchases.apply(customerInfo)
+            }
+            .ignoresSafeArea()
     }
 
     private enum MainTab: Hashable {

@@ -5,6 +5,7 @@ import UIKit
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var purchases: PurchaseManager
     @Query(sort: \UserProfile.createdAt, order: .reverse) private var profiles: [UserProfile]
     @StateObject private var speaker = PrayerSpeaker()
 
@@ -151,6 +152,8 @@ struct TodayView: View {
 
     private func generate(feeling: String, note: String) async {
         guard let profile else { return }
+        // A new prayer is a paid action — the free first prayer was the reveal.
+        guard purchases.requireSubscription() else { return }
         let verse = VerseStore.shared.verse(for: "\(feeling) \(note)")
         phase = .generating(verseReference: verse?.reference ?? "", verseText: verse?.text ?? "")
         WidgetVerseStore.save(reference: verse?.reference ?? "", text: verse?.text ?? "")
