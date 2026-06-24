@@ -5,18 +5,14 @@ import UIKit
 struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.openURL) private var openURL
     @EnvironmentObject private var purchases: PurchaseManager
     @AppStorage(AppConfig.hasSeenFirstPrayerKey) private var hasSeenFirstPrayer = false
-    @AppStorage(AppConfig.aiConsentKey) private var aiConsentGranted = false
     @Query(sort: \UserProfile.createdAt, order: .reverse) private var profiles: [UserProfile]
     @StateObject private var speaker = PrayerSpeaker()
 
     @State private var phase: Phase = .loading
     @State private var shareImage: UIImage?
     @State private var sharePayload: SharePayload?
-    @State private var pendingPrayerToSpeak: String?
-    @State private var showingListenConsent = false
 
     private struct SharePayload {
         let prayerSnippet: String
@@ -40,7 +36,6 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     header
                     content
-                    MedicalDisclaimerText().padding(.top, 8)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 12)
@@ -52,19 +47,6 @@ struct TodayView: View {
         .animation(.easeInOut(duration: 0.2), value: shouldHideTabBar)
         .onChange(of: colorScheme) { _, _ in
             rebuildShareImage()
-        }
-        .alert("Allow AI data sharing?", isPresented: $showingListenConsent) {
-            Button("Cancel", role: .cancel) { pendingPrayerToSpeak = nil }
-            Button("Privacy Policy") { openURL(AppConfig.privacyPolicyURL) }
-            Button("Allow and listen") {
-                aiConsentGranted = true
-                if let prayer = pendingPrayerToSpeak {
-                    speaker.toggle(prayer)
-                }
-                pendingPrayerToSpeak = nil
-            }
-        } message: {
-            Text("Listen sends this generated prayer through Eden's server to OpenAI to create temporary audio. Eden does not store the prayer or audio on its servers.")
         }
     }
 
@@ -98,12 +80,7 @@ struct TodayView: View {
                     if speaker.isSpeaking {
                         speaker.stop()
                     } else if purchases.requireSubscription() {
-                        if aiConsentGranted {
-                            speaker.toggle(prayerBody)
-                        } else {
-                            pendingPrayerToSpeak = prayerBody
-                            showingListenConsent = true
-                        }
+                        speaker.toggle(prayerBody)
                     }
                 },
                 shareImage: shareImage

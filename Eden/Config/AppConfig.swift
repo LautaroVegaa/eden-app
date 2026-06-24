@@ -33,11 +33,6 @@ enum AppConfig {
     static let termsURL = URL(string: "https://geteden.site/terms.html")!
     static let supportEmailURL = URL(string: "mailto:edensupport@gmail.com?subject=Eden%20privacy%20support")!
 
-    /// Set true once the user explicitly accepts that what they share is sent
-    /// through Eden's server to Anthropic for text generation and, only when
-    /// they use Listen, to OpenAI for temporary text-to-speech processing.
-    static let aiConsentKey = "eden.aiConsentGranted"
-
     /// Set true after the user has seen their one free prayer (the "aha" right
     /// after onboarding). After this, the hard paywall gates everything.
     static let hasSeenFirstPrayerKey = "eden.hasSeenFirstPrayer"

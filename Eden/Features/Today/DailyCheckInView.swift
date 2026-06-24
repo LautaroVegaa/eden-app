@@ -6,8 +6,6 @@ struct DailyCheckInView: View {
     let name: String
     let onSubmit: (_ feeling: String, _ note: String) -> Void
 
-    @AppStorage(AppConfig.aiConsentKey) private var aiConsentGranted = false
-    @Environment(\.openURL) private var openURL
     @State private var selected: String?
     @State private var note = ""
     @FocusState private var focused: Bool
@@ -63,14 +61,9 @@ struct DailyCheckInView: View {
             }
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
 
-            if !aiConsentGranted {
-                aiConsentDisclosure
-            }
-
             Button("Get today's prayer") {
                 guard let selected else { return }
                 focused = false
-                aiConsentGranted = true
                 onSubmit(selected, note.trimmingCharacters(in: .whitespacesAndNewlines))
             }
             .buttonStyle(EdenPrimaryButtonStyle())
@@ -78,26 +71,5 @@ struct DailyCheckInView: View {
             .opacity(selected == nil ? 0.6 : 1)
             .padding(.top, 4)
         }
-    }
-
-    /// Apple 5.1.1/5.1.2: explicit consent before sharing personal content with a
-    /// third-party AI. Shown until granted (the first prayer is the first send).
-    private var aiConsentDisclosure: some View {
-        VStack(spacing: 6) {
-            (
-                Text("By tapping ")
-                + Text("Get today's prayer").fontWeight(.semibold)
-                + Text(", you agree Eden sends your first name and what you share through its secure server to Anthropic (Claude AI) to write your prayer. If you use Listen, the generated prayer is sent to OpenAI to create temporary audio. Eden does not store this content on its servers.")
-            )
-            .font(.caption2)
-            .foregroundStyle(Theme.textMuted)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-
-            Button("Privacy Policy") { openURL(AppConfig.privacyPolicyURL) }
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(Theme.accentText)
-        }
-        .padding(.top, 4)
     }
 }

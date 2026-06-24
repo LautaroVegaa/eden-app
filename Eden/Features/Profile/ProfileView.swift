@@ -9,7 +9,6 @@ struct ProfileView: View {
     @EnvironmentObject private var purchases: PurchaseManager
     @AppStorage(HapticService.enabledKey) private var hapticsEnabled = true
     @AppStorage(AppAppearance.storageKey) private var appearanceMode = AppAppearance.system.rawValue
-    @AppStorage(AppConfig.aiConsentKey) private var aiConsentGranted = false
     @State private var showingEdit = false
     @State private var isRestoringPurchases = false
     @State private var subscriptionMessage: String?
@@ -46,9 +45,6 @@ struct ProfileView: View {
                     } else {
                         emptyState
                     }
-
-                    MedicalDisclaimerText()
-                        .padding(.top, 8)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 12)
@@ -206,7 +202,7 @@ struct ProfileView: View {
                     Text("Privacy & data")
                         .font(.headline)
                         .foregroundStyle(Theme.textPrimary)
-                    Text(aiConsentGranted ? "AI data sharing is allowed." : "AI data sharing is off.")
+                    Text("Manage the data Eden keeps for you.")
                         .font(.caption)
                         .foregroundStyle(Theme.textMuted)
                 }
@@ -214,21 +210,6 @@ struct ProfileView: View {
             }
 
             Divider().overlay(Theme.textMuted.opacity(0.18))
-
-            Button {
-                HapticService.selection()
-                aiConsentGranted = false
-                privacyMessage = "AI consent withdrawn. Eden will ask again before sending content to Anthropic or OpenAI."
-            } label: {
-                ProfileActionRow(
-                    icon: "hand.raised.slash",
-                    title: "Withdraw AI consent",
-                    subtitle: "Stops future AI requests until you agree again"
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(!aiConsentGranted)
-            .opacity(aiConsentGranted ? 1 : 0.55)
 
             Button {
                 showingDeleteConfirmation = true
@@ -379,7 +360,6 @@ struct ProfileView: View {
 
         do {
             try await DataPrivacyService().deleteCloudData()
-            aiConsentGranted = false
             purchases.markCustomerDataDeleted()
             HapticService.success()
             privacyMessage = "Cloud data deleted. Prayers stored on this iPhone remain until you delete the app."

@@ -54,7 +54,6 @@ private struct PrayerResponse: Decodable {
 enum PrayerServiceError: LocalizedError {
     case server
     case empty
-    case consentRequired
     /// 403 from the Worker: free prayer already used, or not subscribed. Not a
     /// retryable error — the caller should move the user on (to the paywall).
     case notAllowed
@@ -63,7 +62,6 @@ enum PrayerServiceError: LocalizedError {
         switch self {
         case .server: return "Couldn't reach the prayer service."
         case .empty: return "The prayer came back empty."
-        case .consentRequired: return "AI data sharing consent is required."
         case .notAllowed: return "This prayer needs a subscription."
         }
     }
@@ -72,9 +70,6 @@ enum PrayerServiceError: LocalizedError {
 /// Calls the Eden Worker to generate a prayer. The Worker holds the API key.
 struct PrayerService {
     func generatePrayer(_ request: PrayerRequest) async throws -> String {
-        guard UserDefaults.standard.bool(forKey: AppConfig.aiConsentKey) else {
-            throw PrayerServiceError.consentRequired
-        }
         var urlRequest = URLRequest(url: AppConfig.prayerEndpoint)
         urlRequest.httpMethod = "POST"
         urlRequest.timeoutInterval = 20
@@ -108,9 +103,6 @@ struct PrayerService {
     /// Focused prayer-companion chat. Sends the conversation history; the Worker
     /// keeps it in the faith/prayer lane and returns Eden's reply.
     func chat(name: String, messages: [ChatTurn]) async throws -> String {
-        guard UserDefaults.standard.bool(forKey: AppConfig.aiConsentKey) else {
-            throw PrayerServiceError.consentRequired
-        }
         var urlRequest = URLRequest(url: AppConfig.prayerEndpoint)
         urlRequest.httpMethod = "POST"
         urlRequest.timeoutInterval = 20

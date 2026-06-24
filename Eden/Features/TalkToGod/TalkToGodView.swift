@@ -9,23 +9,14 @@ struct TalkToGodView: View {
     var onBack: () -> Void = {}
 
     @Query(sort: \UserProfile.createdAt, order: .reverse) private var profiles: [UserProfile]
-    @Environment(\.openURL) private var openURL
     @EnvironmentObject private var purchases: PurchaseManager
-    @AppStorage(AppConfig.aiConsentKey) private var aiConsentGranted = false
     @StateObject private var speaker = PrayerSpeaker()
 
     @State private var messages: [ChatMessage] = []
     @State private var input = ""
     @State private var sending = false
     @State private var remaining = ChatLimiter.dailyLimit
-    @State private var pendingAIAction: PendingAIAction?
-    @State private var showingAIConsent = false
     @FocusState private var focused: Bool
-
-    private enum PendingAIAction {
-        case send(String)
-        case listen(String)
-    }
 
     private var profile: UserProfile? { profiles.first }
     private var trimmed: String { input.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -51,22 +42,6 @@ struct TalkToGodView: View {
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .navigationBarBackButtonHidden(true)
-        .alert("Allow AI data sharing?", isPresented: $showingAIConsent) {
-            Button("Cancel", role: .cancel) { pendingAIAction = nil }
-            Button("Privacy Policy") { openURL(AppConfig.privacyPolicyURL) }
-            Button("Allow") {
-                aiConsentGranted = true
-                let action = pendingAIAction
-                pendingAIAction = nil
-                switch action {
-                case let .send(text): send(text)
-                case let .listen(text): speaker.toggle(text)
-                case nil: break
-                }
-            }
-        } message: {
-            Text("Eden sends your first name and messages to Anthropic to create replies. Listen sends generated text to OpenAI to create temporary audio. Eden does not store this content on its servers.")
-        }
     }
 
     private var header: some View {
@@ -215,11 +190,6 @@ struct TalkToGodView: View {
             remaining = ChatLimiter.remaining()
             return
         }
-        guard aiConsentGranted else {
-            pendingAIAction = .send(content)
-            showingAIConsent = true
-            return
-        }
         input = ""
         focused = false
         HapticService.impact()
@@ -251,11 +221,8 @@ struct TalkToGodView: View {
         guard purchases.requireSubscription() else { return }
         if speaker.isSpeaking {
             speaker.stop()
-        } else if aiConsentGranted {
-            speaker.toggle(text)
         } else {
-            pendingAIAction = .listen(text)
-            showingAIConsent = true
+            speaker.toggle(text)
         }
     }
 }

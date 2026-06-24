@@ -5,7 +5,6 @@ import SwiftUI
 struct OnboardingConfession: View {
     let onContinue: (String) -> Void
 
-    @AppStorage(AppConfig.aiConsentKey) private var aiConsentGranted = false
     @Environment(\.openURL) private var openURL
     @State private var text = ""
     @State private var showValidation = false
@@ -66,7 +65,6 @@ struct OnboardingConfession: View {
                     showValidation = true
                     return
                 }
-                aiConsentGranted = true
                 onContinue(trimmedText)
             }
             .buttonStyle(EdenPrimaryButtonStyle())
