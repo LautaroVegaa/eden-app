@@ -12,6 +12,19 @@ struct OnboardingContainer: View {
     @State private var draft = OnboardingDraft()
     private let steps = OnboardingStep.allCases
 
+    /// The user's chosen struggle as a natural phrase, so follow-up questions read
+    /// like a person wrote them ("How often does the loneliness hit?") instead of
+    /// hardcoding "anxiety". Falls back to "it" where a noun would read awkwardly.
+    private var struggleNoun: String {
+        switch draft.struggle {
+        case "Anxiety": return "the anxiety"
+        case "Fear about the future": return "the fear"
+        case "Loneliness": return "the loneliness"
+        case "Doubt": return "the doubt"
+        default: return "it"
+        }
+    }
+
     var body: some View {
         ScreenContainer {
             VStack(spacing: 0) {
@@ -42,9 +55,15 @@ struct OnboardingContainer: View {
                 options: ["Anxiety", "Fear about the future", "Loneliness", "Doubt", "Relationships"],
                 onSelect: { draft.struggle = $0; advance() }
             )
+        case .value:
+            OnboardingBeat(
+                title: "You won't carry it alone.",
+                message: "Eden writes a personal prayer for exactly what you're feeling, and stays with you as a companion you can talk to and find calm with, any time you need.",
+                onContinue: advance
+            )
         case .frequency:
             OnboardingSingleSelect(
-                title: "How often does the anxiety hit?",
+                title: "How often does \(struggleNoun) hit?",
                 subtitle: "The more it shows up, the more your daily prayer matters.",
                 options: ["Every day", "Most days", "A few times a week", "It comes in waves"],
                 onSelect: { draft.frequency = $0; advance() }

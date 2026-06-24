@@ -4,6 +4,7 @@ import Foundation
 /// Copy for each step lives in OnboardingContainer for easy iteration.
 enum OnboardingStep: Int, CaseIterable {
     case pain
+    case value
     case frequency
     case distance
     case words
