@@ -1,62 +1,79 @@
 import AVFoundation
+import RevenueCat
 
-/// On-device text-to-speech (free) for the "Listen" button. Reads your prayer
-/// with your eyes closed. Picks the deepest, calmest male voice available and
-/// lowers pitch + rate for a grounded, reverent tone.
-final class PrayerSpeaker: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
+/// Plays a prayer read aloud in a warm, deep, calm voice. The audio is generated
+/// by the Eden Worker (OpenAI "onyx") and streamed back as mp3 — far more human
+/// than on-device text-to-speech. A loading flag covers the brief fetch.
+@MainActor
+final class PrayerSpeaker: NSObject, ObservableObject {
     @Published private(set) var isSpeaking = false
-    private let synthesizer = AVSpeechSynthesizer()
 
-    override init() {
-        super.init()
-        synthesizer.delegate = self
-    }
+    private var player: AVAudioPlayer?
+    private var loadTask: Task<Void, Never>?
 
+    /// Toggle playback: starts fetching + playing, or stops if already active.
     func toggle(_ text: String) {
-        if synthesizer.isSpeaking {
-            synthesizer.stopSpeaking(at: .immediate)
+        if isSpeaking || loadTask != nil {
+            stop()
             return
         }
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
-        try? AVAudioSession.sharedInstance().setActive(true)
-
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = Self.bestVoice()
-        utterance.pitchMultiplier = 0.85          // deeper / graver
-        utterance.rate = 0.43                      // slower, calmer
-        utterance.preUtteranceDelay = 0.2
-        synthesizer.speak(utterance)
-    }
-
-    /// Best available English male voice: premium > enhanced > default,
-    /// preferring en-US. Higher-quality voices appear once the user downloads
-    /// them in iOS Settings → Accessibility → Spoken Content → Voices.
-    private static func bestVoice() -> AVSpeechSynthesisVoice? {
-        let candidates = AVSpeechSynthesisVoice.speechVoices()
-            .filter { $0.language.hasPrefix("en") && $0.gender == .male }
-
-        func score(_ v: AVSpeechSynthesisVoice) -> Int {
-            var s = 0
-            switch v.quality {
-            case .premium: s += 100
-            case .enhanced: s += 50
-            default: break
-            }
-            if v.language == "en-US" { s += 10 }
-            return s
-        }
-
-        return candidates.max { score($0) < score($1) }
-            ?? AVSpeechSynthesisVoice(language: "en-US")
-    }
-
-    func speechSynthesizer(_ s: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
         isSpeaking = true
+        loadTask = Task { await loadAndPlay(text) }
     }
-    func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+
+    func stop() {
+        loadTask?.cancel()
+        loadTask = nil
+        player?.stop()
+        player = nil
         isSpeaking = false
     }
-    func speechSynthesizer(_ s: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        isSpeaking = false
+
+    private func loadAndPlay(_ text: String) async {
+        defer { loadTask = nil }
+        guard let data = await fetchAudio(text), !Task.isCancelled else {
+            isSpeaking = false
+            return
+        }
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
+            try AVAudioSession.sharedInstance().setActive(true)
+            let audio = try AVAudioPlayer(data: data)
+            audio.delegate = self
+            audio.play()
+            player = audio
+            isSpeaking = true
+        } catch {
+            isSpeaking = false
+        }
+    }
+
+    private func fetchAudio(_ text: String) async -> Data? {
+        var req = URLRequest(url: AppConfig.ttsEndpoint)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 30
+        req.setValue("application/json", forHTTPHeaderField: "content-type")
+        req.httpBody = try? JSONEncoder().encode([
+            "text": text,
+            "appUserId": Purchases.shared.appUserID,
+        ])
+        let headers = await AppAttestService.shared.headers(for: req.httpBody ?? Data())
+        for (key, value) in headers {
+            req.setValue(value, forHTTPHeaderField: key)
+        }
+        guard let (data, response) = try? await URLSession.shared.data(for: req),
+              let http = response as? HTTPURLResponse, http.statusCode == 200, !data.isEmpty else {
+            return nil
+        }
+        return data
+    }
+}
+
+extension PrayerSpeaker: AVAudioPlayerDelegate {
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in
+            self.isSpeaking = false
+            self.player = nil
+        }
     }
 }

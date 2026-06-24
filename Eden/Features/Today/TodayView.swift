@@ -77,7 +77,12 @@ struct TodayView: View {
             PrayerCard(
                 body_: prayerBody,
                 isSpeaking: speaker.isSpeaking,
-                onToggleListen: { speaker.toggle(prayerBody) },
+                onToggleListen: {
+                    // Listening is a paid feature; stopping is always allowed.
+                    if speaker.isSpeaking || purchases.requireSubscription() {
+                        speaker.toggle(prayerBody)
+                    }
+                },
                 shareImage: shareImage
             )
             if let profile {

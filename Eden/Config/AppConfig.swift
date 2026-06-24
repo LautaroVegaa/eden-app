@@ -10,6 +10,9 @@ enum AppConfig {
     static let attestChallengeEndpoint = URL(string: "https://eden-prayer.lautarocarignani.workers.dev/attest/challenge")!
     static let attestRegisterEndpoint = URL(string: "https://eden-prayer.lautarocarignani.workers.dev/attest/register")!
 
+    /// Text-to-speech endpoint on the Worker (OpenAI "onyx" voice). Returns mp3.
+    static let ttsEndpoint = URL(string: "https://eden-prayer.lautarocarignani.workers.dev/tts")!
+
     /// RevenueCat public SDK key (safe to ship in the app — the secret key lives
     /// only in the Worker for server-side verification).
     static let revenueCatKey = "appl_SRaqynXhWhUFSUkVlsOexTbjDox"
