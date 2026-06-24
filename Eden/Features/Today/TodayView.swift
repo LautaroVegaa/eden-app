@@ -6,6 +6,7 @@ struct TodayView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var purchases: PurchaseManager
+    @AppStorage(AppConfig.hasSeenFirstPrayerKey) private var hasSeenFirstPrayer = false
     @Query(sort: \UserProfile.createdAt, order: .reverse) private var profiles: [UserProfile]
     @StateObject private var speaker = PrayerSpeaker()
 
@@ -154,8 +155,11 @@ struct TodayView: View {
 
     private func generate(feeling: String, note: String) async {
         guard let profile else { return }
-        // A new prayer is a paid action — the free first prayer was the reveal.
-        guard purchases.requireSubscription() else { return }
+        // The first prayer is free (the aha). Every prayer after that is a paid
+        // action, so gate it behind the paywall.
+        if hasSeenFirstPrayer {
+            guard purchases.requireSubscription() else { return }
+        }
         let verse = VerseStore.shared.verse(for: "\(feeling) \(note)")
         phase = .generating(verseReference: verse?.reference ?? "", verseText: verse?.text ?? "")
         WidgetVerseStore.save(reference: verse?.reference ?? "", text: verse?.text ?? "")
@@ -173,6 +177,13 @@ struct TodayView: View {
             let text = try await PrayerService().generatePrayer(request)
             cachePrayer(text, dateKey: DayKey.key(), struggle: feeling, verse: verse)
             applyPrayer(text, reference: verse?.reference ?? "", text: verse?.text ?? "")
+            hasSeenFirstPrayer = true
+        } catch PrayerServiceError.notAllowed {
+            // Free prayer already spent server-side (e.g. after reinstall) or not
+            // subscribed — mark it and bring up the paywall instead of an error.
+            hasSeenFirstPrayer = true
+            phase = .checkIn
+            purchases.showPaywall = true
         } catch {
             phase = .failed("Couldn't write your prayer. Check your connection and try again.")
         }

@@ -3,6 +3,7 @@ import RevenueCatUI
 
 struct MainTabView: View {
     @EnvironmentObject private var purchases: PurchaseManager
+    @AppStorage(AppConfig.hasSeenFirstPrayerKey) private var hasSeenFirstPrayer = false
     @State private var selectedTab: MainTab = .today
 
     var body: some View {
@@ -38,8 +39,9 @@ struct MainTabView: View {
             HapticService.selection()
         }
         .task {
-            // Greet non-subscribers (limited mode) with the paywall on entry.
-            if !purchases.isSubscribed { purchases.showPaywall = true }
+            // Present the paywall to non-subscribers only AFTER they've spent their
+            // free first prayer (done in Today's check-in). New users get the aha first.
+            if !purchases.isSubscribed && hasSeenFirstPrayer { purchases.showPaywall = true }
         }
         .fullScreenCover(isPresented: $purchases.showPaywall) {
             paywallCover

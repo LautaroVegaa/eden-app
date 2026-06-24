@@ -14,6 +14,5 @@ enum OnboardingStep: Int, CaseIterable {
     case verse
     case gender
     case name
-    case confession
     case notifications
 }

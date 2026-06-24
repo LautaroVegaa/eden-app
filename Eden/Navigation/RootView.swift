@@ -1,12 +1,11 @@
 import SwiftUI
 import SwiftData
 
-/// Flow: splash -> onboarding (once) -> one free prayer -> hard paywall -> app.
+/// Flow: splash -> onboarding (once) -> Today (free first prayer) -> paywall -> app.
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var purchases: PurchaseManager
     @Query private var profiles: [UserProfile]
-    @AppStorage(AppConfig.hasSeenFirstPrayerKey) private var hasSeenFirstPrayer = false
     @State private var showSplash = true
 
     var body: some View {
@@ -31,16 +30,11 @@ struct RootView: View {
             NavigationStack { OnboardingView() }
         } else if !purchases.isReady {
             SplashView()
-        } else if !purchases.isSubscribed, !hasSeenFirstPrayer, let profile = profiles.first {
-            // One free prayer (the "aha") before the paywall ever appears.
-            FirstPrayerRevealView(profile: profile) {
-                HapticService.selection()
-                withAnimation(.easeInOut(duration: 0.35)) { hasSeenFirstPrayer = true }
-            }
         } else {
-            // Subscribers: full app. Non-subscribers: limited app with the
-            // paywall presented over it (dismissable X -> limited; paid actions
-            // re-present it). MainTabView owns that cover.
+            // Subscribers: full app. Non-subscribers: limited app. The free first
+            // prayer happens in Today's daily check-in (no separate screen), and the
+            // paywall appears only after that first prayer is spent. MainTabView owns
+            // the paywall cover.
             MainTabView()
         }
     }

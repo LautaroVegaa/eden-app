@@ -160,8 +160,6 @@ struct OnboardingContainer: View {
                 buttonTitle: "Continue",
                 onContinue: { draft.name = $0; advance() }
             )
-        case .confession:
-            OnboardingConfession(onContinue: { draft.confession = $0; advance() })
         case .notifications:
             OnboardingNotifications(onDecision: handleNotificationDecision)
         }
