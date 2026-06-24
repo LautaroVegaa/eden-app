@@ -40,6 +40,7 @@ struct TalkToGodView: View {
         }
         .onAppear { remaining = ChatLimiter.remaining() }
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .navigationBarBackButtonHidden(true)
     }
 
