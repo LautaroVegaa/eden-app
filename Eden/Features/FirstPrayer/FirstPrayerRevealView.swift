@@ -44,7 +44,9 @@ struct FirstPrayerRevealView: View {
 
     private var generatingState: some View {
         VStack(spacing: 18) {
-            EdenLoadingMark(size: 54)
+            ProgressView()
+                .controlSize(.large)
+                .tint(Theme.accentText)
             Text("Writing your first prayer…")
                 .font(.system(.body, design: .serif))
                 .foregroundStyle(Theme.textMuted)

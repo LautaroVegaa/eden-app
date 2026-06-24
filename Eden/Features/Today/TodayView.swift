@@ -106,7 +106,9 @@ struct TodayView: View {
 
     private func loadingCard(_ message: String) -> some View {
         VStack(spacing: 14) {
-            EdenLoadingMark(size: 34)
+            ProgressView()
+                .controlSize(.large)
+                .tint(Theme.accentText)
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(Theme.textMuted)

@@ -1,27 +1,43 @@
 import SwiftUI
 
-/// Branded cold-start splash: the Eden mark with the name below, easing in.
-/// Doubles as the quiet loader while subscription state resolves.
+/// Cold-start splash: the static Eden mark with the name below. No animation.
 struct SplashView: View {
-    @State private var appear = false
-
     var body: some View {
         ScreenContainer {
             VStack(spacing: 18) {
-                EdenLoadingMark(size: 66)
-                    .scaleEffect(appear ? 1 : 0.82)
-                    .opacity(appear ? 1 : 0)
-
+                EdenMark(size: 78)
                 Text("Eden")
                     .font(.system(.largeTitle, design: .serif).weight(.semibold))
                     .foregroundStyle(Theme.textPrimary)
-                    .opacity(appear ? 1 : 0)
-                    .offset(y: appear ? 0 : 10)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.7)) { appear = true }
+    }
+}
+
+/// The static Eden app mark: a cross inside an open ring (gap at the bottom).
+private struct EdenMark: View {
+    var size: CGFloat = 78
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .trim(from: 0.08, to: 0.92)
+                .stroke(
+                    Theme.accentFill,
+                    style: StrokeStyle(lineWidth: size * 0.075, lineCap: .round)
+                )
+                .rotationEffect(.degrees(90)) // move the gap to the bottom
+                .frame(width: size, height: size)
+
+            RoundedRectangle(cornerRadius: size * 0.035)
+                .fill(Theme.accentFill)
+                .frame(width: size * 0.12, height: size * 0.52)
+
+            RoundedRectangle(cornerRadius: size * 0.035)
+                .fill(Theme.accentFill)
+                .frame(width: size * 0.36, height: size * 0.105)
+                .offset(y: -size * 0.08)
         }
     }
 }
