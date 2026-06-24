@@ -5,6 +5,11 @@ enum AppConfig {
     /// the secret (Anthropic key) lives inside the Worker, never here.
     static let prayerEndpoint = URL(string: "https://eden-prayer.lautarocarignani.workers.dev")!
 
+    /// App Attest endpoints on the same Worker. Used to prove requests come from a
+    /// genuine app instance (anti-abuse for the public endpoint).
+    static let attestChallengeEndpoint = URL(string: "https://eden-prayer.lautarocarignani.workers.dev/attest/challenge")!
+    static let attestRegisterEndpoint = URL(string: "https://eden-prayer.lautarocarignani.workers.dev/attest/register")!
+
     /// RevenueCat public SDK key (safe to ship in the app — the secret key lives
     /// only in the Worker for server-side verification).
     static let revenueCatKey = "appl_SRaqynXhWhUFSUkVlsOexTbjDox"

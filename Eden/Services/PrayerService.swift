@@ -71,6 +71,7 @@ struct PrayerService {
         urlRequest.timeoutInterval = 20
         urlRequest.setValue("application/json", forHTTPHeaderField: "content-type")
         urlRequest.httpBody = try JSONEncoder().encode(PrayerWireBody(request, appUserId: Purchases.shared.appUserID))
+        await attachAttestation(&urlRequest)
 
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
@@ -84,6 +85,15 @@ struct PrayerService {
         return prayer
     }
 
+    /// Attach App Attest headers so the Worker can prove the request comes from a
+    /// genuine app instance. No-op (and never throws) when unsupported or failing.
+    private func attachAttestation(_ request: inout URLRequest) async {
+        let headers = await AppAttestService.shared.headers(for: request.httpBody ?? Data())
+        for (key, value) in headers {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+    }
+
     /// Focused prayer-companion chat. Sends the conversation history; the Worker
     /// keeps it in the faith/prayer lane and returns Eden's reply.
     func chat(name: String, messages: [ChatTurn]) async throws -> String {
@@ -94,6 +104,7 @@ struct PrayerService {
         urlRequest.httpBody = try JSONEncoder().encode(
             ChatRequest(name: name, messages: messages, appUserId: Purchases.shared.appUserID)
         )
+        await attachAttestation(&urlRequest)
 
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
