@@ -134,6 +134,11 @@ struct FirstPrayerRevealView: View {
             WidgetVerseStore.save(reference: verse?.reference ?? "", text: verse?.text ?? "")
             HapticService.success()
             phase = .loaded(body: body, verseReference: verse?.reference ?? "", verseText: verse?.text ?? "")
+        } catch PrayerServiceError.notAllowed {
+            // Free prayer already spent (e.g. reinstall, where the server remembers
+            // but the local flag reset) or not eligible — move on to the paywall
+            // instead of showing a misleading "connection dropped" error.
+            onContinue()
         } catch {
             phase = .failed
         }

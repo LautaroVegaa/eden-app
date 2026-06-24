@@ -54,11 +54,15 @@ private struct PrayerResponse: Decodable {
 enum PrayerServiceError: LocalizedError {
     case server
     case empty
+    /// 403 from the Worker: free prayer already used, or not subscribed. Not a
+    /// retryable error — the caller should move the user on (to the paywall).
+    case notAllowed
 
     var errorDescription: String? {
         switch self {
         case .server: return "Couldn't reach the prayer service."
         case .empty: return "The prayer came back empty."
+        case .notAllowed: return "This prayer needs a subscription."
         }
     }
 }
@@ -74,7 +78,9 @@ struct PrayerService {
         await attachAttestation(&urlRequest)
 
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+        guard let http = response as? HTTPURLResponse else { throw PrayerServiceError.server }
+        if http.statusCode == 403 { throw PrayerServiceError.notAllowed }
+        guard (200..<300).contains(http.statusCode) else {
             throw PrayerServiceError.server
         }
 

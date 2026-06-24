@@ -19,7 +19,10 @@ final class AppAttestService {
     static let shared = AppAttestService()
 
     private let service = DCAppAttestService.shared
-    private let keyIdKeychainKey = "eden.appattest.keyId"
+    // Stored in UserDefaults (NOT Keychain) on purpose: it is cleared on reinstall,
+    // exactly like the underlying Secure Enclave key, so a stale id never points at
+    // a key that no longer exists.
+    private let keyIdDefaultsKey = "eden.appattest.keyId"
 
     private init() {}
 
@@ -30,7 +33,15 @@ final class AppAttestService {
     func headers(for body: Data) async -> [String: String] {
         guard service.isSupported else { return [:] }
         do {
-            let keyId = try await attestedKeyId()
+            return try await signedHeaders(for: body, allowReattest: true)
+        } catch {
+            return [:]
+        }
+    }
+
+    private func signedHeaders(for body: Data, allowReattest: Bool) async throws -> [String: String] {
+        let keyId = try await attestedKeyId()
+        do {
             let hash = Data(SHA256.hash(data: body))
             let assertion = try await service.generateAssertion(keyId, clientDataHash: hash)
             return [
@@ -38,21 +49,25 @@ final class AppAttestService {
                 "X-Eden-Attest-Assertion": assertion.base64EncodedString(),
             ]
         } catch {
-            return [:]
+            // The cached key is no longer usable (its Secure Enclave key was removed,
+            // e.g. on reinstall). Drop it and attest a fresh one, once.
+            guard allowReattest else { throw error }
+            UserDefaults.standard.removeObject(forKey: keyIdDefaultsKey)
+            return try await signedHeaders(for: body, allowReattest: false)
         }
     }
 
-    /// A key id that has been attested with Apple, creating and attesting one on
-    /// first use and caching the id in the Keychain (so it survives reinstalls).
+    /// A key id that has been attested with Apple. Created and attested on first
+    /// use; cached in UserDefaults so its lifetime matches the Secure Enclave key.
     private func attestedKeyId() async throws -> String {
-        if let existing = KeychainStore.read(keyIdKeychainKey) { return existing }
+        if let existing = UserDefaults.standard.string(forKey: keyIdDefaultsKey) { return existing }
 
         let keyId = try await service.generateKey()
         let challenge = try await fetchChallenge()
         let attestation = try await service.attestKey(keyId, clientDataHash: Data(SHA256.hash(data: challenge)))
         try await register(keyId: keyId, attestation: attestation, challenge: challenge)
 
-        KeychainStore.save(keyId, for: keyIdKeychainKey)
+        UserDefaults.standard.set(keyId, forKey: keyIdDefaultsKey)
         return keyId
     }
 

@@ -25,6 +25,43 @@ struct OnboardingContainer: View {
         }
     }
 
+    /// Three verses that actually fit the struggle the user chose, so the verse
+    /// step feels picked for them instead of a generic anxiety list.
+    private var verseOptions: [String] {
+        switch draft.struggle {
+        case "Fear about the future":
+            return [
+                "\"For I know the plans I have for you, plans to prosper you and not to harm you.\" Jeremiah 29:11",
+                "\"Do not fear, for I am with you; do not be dismayed, for I am your God.\" Isaiah 41:10",
+                "\"Be strong and courageous. Do not be afraid, for the Lord your God will be with you wherever you go.\" Joshua 1:9"
+            ]
+        case "Loneliness":
+            return [
+                "\"He will never leave you nor forsake you.\" Deuteronomy 31:6",
+                "\"The Lord is close to the brokenhearted and saves those who are crushed in spirit.\" Psalm 34:18",
+                "\"Surely I am with you always, to the very end of the age.\" Matthew 28:20"
+            ]
+        case "Doubt":
+            return [
+                "\"I do believe; help me overcome my unbelief.\" Mark 9:24",
+                "\"Trust in the Lord with all your heart and lean not on your own understanding.\" Proverbs 3:5",
+                "\"Now faith is confidence in what we hope for and assurance about what we do not see.\" Hebrews 11:1"
+            ]
+        case "Relationships":
+            return [
+                "\"Love is patient, love is kind.\" 1 Corinthians 13:4",
+                "\"Bear with each other and forgive one another.\" Colossians 3:13",
+                "\"If it is possible, as far as it depends on you, live at peace with everyone.\" Romans 12:18"
+            ]
+        default: // Anxiety
+            return [
+                "\"Cast all your anxiety on him, because he cares for you.\" 1 Peter 5:7",
+                "\"Be still, and know that I am God.\" Psalm 46:10",
+                "\"When anxiety was great within me, your consolation brought me joy.\" Psalm 94:19"
+            ]
+        }
+    }
+
     var body: some View {
         ScreenContainer {
             VStack(spacing: 0) {
@@ -105,11 +142,7 @@ struct OnboardingContainer: View {
             OnboardingSingleSelect(
                 title: "Which one hits hardest right now?",
                 subtitle: "Tap the one your heart needs today.",
-                options: [
-                    "\"Cast all your anxiety on him, because he cares for you.\" 1 Peter 5:7",
-                    "\"Be still, and know that I am God.\" Psalm 46:10",
-                    "\"When anxiety was great within me, your consolation brought me joy.\" Psalm 94:19"
-                ],
+                options: verseOptions,
                 onSelect: { draft.verse = $0; advance() }
             )
         case .gender:
