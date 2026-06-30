@@ -50,4 +50,22 @@ final class UserProfile {
         self.confession = confession
         self.createdAt = createdAt
     }
+
+    /// The streak as it actually stands today. `currentStreak` is only recomputed
+    /// when the user taps "I prayed", so it goes stale the moment a day is missed.
+    /// A streak is alive only if the last prayer was today or yesterday; otherwise
+    /// it is broken and reads 0 — reflected immediately for display.
+    var liveCurrentStreak: Int {
+        guard let last = lastPrayedAt else { return 0 }
+        let calendar = Calendar.current
+        return (calendar.isDateInToday(last) || calendar.isDateInYesterday(last)) ? currentStreak : 0
+    }
+
+    /// Persist a broken streak so the stored value matches reality. Call on load.
+    /// `longestStreak` is untouched — it is a historical max and never decreases.
+    func normalizeStreak() {
+        if liveCurrentStreak == 0 && currentStreak != 0 {
+            currentStreak = 0
+        }
+    }
 }

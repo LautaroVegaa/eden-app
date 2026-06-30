@@ -60,7 +60,7 @@ struct TalkToGodView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Back")
 
-                Text("Talk to God")
+                Text("Pray with Eden")
                     .font(.system(.title2, design: .serif).weight(.semibold))
                     .foregroundStyle(Theme.textPrimary)
             }

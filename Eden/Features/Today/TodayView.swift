@@ -87,7 +87,7 @@ struct TodayView: View {
             )
             if let profile {
                 StreakCard(
-                    currentStreak: profile.currentStreak,
+                    currentStreak: profile.liveCurrentStreak,
                     prayedToday: prayedToday(profile),
                     onPrayed: { registerPrayed(profile) }
                 )
@@ -147,9 +147,13 @@ struct TodayView: View {
     // MARK: - Load / generate
 
     private func loadCached() async {
-        guard profile != nil else {
+        guard let profile else {
             phase = .failed("Finish onboarding first.")
             return
+        }
+        if profile.currentStreak != profile.liveCurrentStreak {
+            profile.normalizeStreak()
+            try? modelContext.save()
         }
         if let cached = fetchCachedPrayer(for: DayKey.key()) {
             applyPrayer(cached.prayerText, reference: cached.verseReference, text: cached.verseText)

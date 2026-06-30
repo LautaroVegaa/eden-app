@@ -313,7 +313,7 @@ struct ProfileView: View {
 
     private func streakSummary(_ profile: UserProfile) -> some View {
         HStack(spacing: 12) {
-            ProfileMetric(icon: "flame.fill", value: "\(profile.currentStreak)", label: "Current streak")
+            ProfileMetric(icon: "flame.fill", value: "\(profile.liveCurrentStreak)", label: "Current streak")
             ProfileMetric(icon: "trophy.fill", value: "\(profile.longestStreak)", label: "Longest streak")
         }
     }

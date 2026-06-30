@@ -22,7 +22,7 @@ struct MainTabView: View {
                 }
             }
             .tabItem {
-                Label("Talk", systemImage: "sparkles")
+                Label("Pray", systemImage: "sparkles")
             }
             .tag(MainTab.talk)
 
