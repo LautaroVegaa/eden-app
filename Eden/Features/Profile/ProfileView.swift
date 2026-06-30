@@ -110,12 +110,12 @@ struct ProfileView: View {
                     Text("Subscription")
                         .font(.headline)
                         .foregroundStyle(Theme.textPrimary)
-                    Text(purchases.isSubscribed ? "Premium access is active." : "Manage your Eden access.")
+                    Text(purchases.isSubscribed ? "Premium access is active." : "Unlock unlimited prayers, chat, and Listen.")
                         .font(.caption)
                         .foregroundStyle(Theme.textMuted)
                 }
                 Spacer()
-                Text(purchases.isSubscribed ? "Active" : "Locked")
+                Text(purchases.isSubscribed ? "Premium" : "Free")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(purchases.isSubscribed ? Theme.accentText : Theme.textMuted)
                     .padding(.horizontal, 10)
@@ -125,6 +125,20 @@ struct ProfileView: View {
 
             Divider()
                 .overlay(Theme.textMuted.opacity(0.18))
+
+            if !purchases.isSubscribed {
+                Button {
+                    HapticService.selection()
+                    purchases.showPaywall = true
+                } label: {
+                    ProfileActionRow(
+                        icon: "sparkles",
+                        title: "See subscription options",
+                        subtitle: "Weekly with a 3-day free trial, or yearly"
+                    )
+                }
+                .buttonStyle(.plain)
+            }
 
             Button {
                 HapticService.selection()
